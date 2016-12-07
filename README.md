@@ -8,5 +8,5 @@ Responds to the following commands:
  !test
   -some built in snark
   
- !return
-  -kills the client remotely (untested ATM)
+ !kill
+  -kills the client remotely
