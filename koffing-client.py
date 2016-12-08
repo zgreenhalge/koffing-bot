@@ -85,4 +85,3 @@ def shutdown_message():
                     yield from client.send_message(channel, 'Koffing-bot is going back to its pokeball~!')              
 
 client.run(token)
-# client.run('zgreenhalge@gmail.com', 'seraphim')
