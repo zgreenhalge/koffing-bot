@@ -14,61 +14,66 @@ from random import randint
 # Bot Testing (256173272637374464)
 # Dan (245295076865998869)
 
-LOG_FORMAT = '[%(asctime)-15s] %(message)s'
+LOG_FORMAT = '[%(asctime)-15s] [%(levelname)s] - %(message)s'
 token = 'MjU2MjIyMjU4NjQ3OTI0NzM3.CypBIw.c3RDGrECBWYVwV77aN_2o0j8BkU'
-authorized_channels = ['256173272637374464']
+FEATURE_LIST = 'Current feature list:\n -responds in text channels! (DONE)\n -responds in voice channels (NOT IMPLEMENTED)\n -roll call (NOT IMPLEMENTED)\n -song of the day (NOT IMPLEMENTED)'
+authorized_servers = ['256173272637374464'] #Bot Testing only
 start_messages = ["Koffing-bot, go~!", "Get 'em Koffing-bot~!"]
 dev = True
 #--------------------------------------------------------------------
-
 client = discord.Client()
+
+#Logging set up
 date = datetime.datetime.fromtimestamp(time.time()).strftime('%m-%d-%Y')
-logging.basicConfig(filename="LOG_" + date + ".txt", format=LOG_FORMAT, level=logging.INFO)
+logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+fh = logging.FileHandler("LOG_" + date + ".txt")
+fh.setLevel(logging.DEBUG)
+fh.setFormatter(logging.Formatter(LOG_FORMAT))
+logger.addHandler(fh)
 
 #--------------------------------------------------------------------
 
 @client.event
 @asyncio.coroutine
 def on_ready():
-    logger.debug('Logged in as %s - %s', client.user.name, client.user.id)
-    # print('Logged in as {} ({}) - {}'.format(get_time_str(), client.user.name, client.user.display_name, client.user.id))
-    
+    logger.debug('Logged in as %s - %s', client.user.name, client.user.id)    
 
-    # if dev==True:
-    #     for server in client.servers:
-    #         print('{} ({})'.format(server.name, server.id))
-    #     return
+    if dev==True:
+        logger.info('Member of the following servers:')
+        for server in client.servers:
+            logger.info(' %s (%s)', server.name, server.id)
 
     for server in client.servers:
-        if server.id in authorized_channels:
+        if server.id in authorized_servers:
             for channel in server.channels:
                 if channel.type==discord.ChannelType.text:
                     logger.info('Alerting %s::%s to bot presence', server.name, channel.name)
-                    # print('{}  Alerting {}::{} to bot presence'.format(get_time_str(), server.name, channel.name))
                     yield from client.send_message(channel, start_messages[randint(0, len(start_messages)-1)])
                 
 
 @client.event
 @asyncio.coroutine
 def on_message(message):
-    if message.server.id not in authorized_channels:
+    if message.server.id == '236606365391519744':
+        logger.info('%s: %s', message.author.name, message.content)
+        return
+    if message.server.id not in authorized_servers:
         return
     if message.author.id==client.user.id:
         return
-    logger.info('Recieved message from "%s" (%s) in %s::%s', message.author.display_name, message.author.name, message.server.name, message.channel.name)
-    # print('{} Recieved message from "{}" ({}) in {}::{}'.format(get_time_str(), message.author.display_name, message.author.name, message.server.name, message.channel.name))
 
+    logger.debug('Recieved message from "%s" (%s) in %s::%s', message.author.display_name, message.author.name, message.server.name, message.channel.name)
+    yield from check_for_koffing(message)
 
     if message.content.startswith('!test'):
         yield from client.send_message(message.channel, 'Okay {}, relax...'.format(message.author.mention))
 
-    elif message.content.startswith('!koffing'):
-        yield from asyncio.sleep(randint(0,5))
-        logger.info('     Responding to "%s" (%s) in %s::%s', message.author.display_name, message.author.name, message.server.name, message.channel.name)
-        # print('{}   Responding to "{}" ({}) in {}'.format(get_time_str(), message.author.display_name, message.author.name, message.channel.name))
-        yield from client.send_message(message.channel, 'Koffing!!')
+    if message.content.startswith('!help'):
+        yield from client.send_message(message.channel, "I'll get around to this later...")        
+
+    if message.content.startswith('!feature'):
+        yield from client.send_message(message.channel, FEATURE_LIST)
 
     elif message.content.startswith('!kill'):
         yield from shutdown_message()
@@ -77,11 +82,33 @@ def on_message(message):
 @asyncio.coroutine
 def shutdown_message():
     for server in client.servers:
-        if server.id in authorized_channels:
+        if server.id in authorized_servers:
             for channel in server.channels:
                 if channel.type==discord.ChannelType.text:
                     logger.info('Alerting %s to bot shutdown', channel.name)
-                    # print('{}  Alerting {} to bot shutdown'.format(get_time_str(), channel.name))
                     yield from client.send_message(channel, 'Koffing-bot is going back to its pokeball~!')              
+
+@asyncio.coroutine
+def check_for_koffing(message):
+    if message.content.startswith('!koffing') or 'koffing' in message.content:
+        logger.debug('  Responding to "%s" (%s) in %s::%s', message.author.display_name, message.author.name, message.server.name, message.channel.name)
+        
+        koffing_emoji = None
+        koffing_str = None
+        for emoji in message.server.emojis:
+            if emoji.name == 'koffing':
+                koffing_emoji = emoji
+
+        koffing_str = str(koffing_emoji)
+        response = randint(1,3)*koffing_str + ' ' + 'Koff' + randint(1,5)*'i' + 'ng!!' + randint(1,3)*koffing_str
+        yield from client.send_message(message.channel, response)
+        yield from client.add_reaction(message, koffing_emoji)
+
+        if message.author.voice_channel != None:
+            logger.debug('Attempting to play in voice channel %s', message.author.voice_channel.name)
+            voice = yield from client.join_voice_channel(message.author.voice_channel)
+            player = voice.create_ffmpeg_player('koffing.mp3')
+            player.start()
+
 
 client.run(token)
