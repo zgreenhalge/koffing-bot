@@ -13,7 +13,7 @@ from random import randint
 LOG_FORMAT = '[%(asctime)-15s] [%(levelname)s] - %(message)s'
 TOKEN = 'MjU2MjIyMjU4NjQ3OTI0NzM3.CypBIw.c3RDGrECBWYVwV77aN_2o0j8BkU'
 FEATURE_LIST = '```Current feature list (*=requires privilege):\n -responds in text channels!\n -responds in voice channels (PLANNED)\n -roll call (PLANNED)\n -song of the day (PLANNED)\n -elo lookup [Overwatch] (PLANNED) \n -elo lookup [LoL] (PLANNED) \n -mute\n -vote (PLANNED)```'
-HELP = 'Koffing~~ I will respond any time my name is called!```\nCommands (*=requires privilege):\n /koffing help\n /koffing features\n*/koffing mute\n*/koffing unmute\n*/koffing admin [list] [remove (user)] [add (user)]```'
+HELP = 'Koffing~~ I will respond any time my name is called!```\nCommands (*=requires privilege):\n /koffing help\n /koffing features\n*/koffing mute\n*/koffing unmute\n*/koffing admin [list] [remove (@user) [@user]] [add (@user) [@user]]\n*/koffing return```'
 CONFIG = 'koffing.cfg'
 start_messages = ["Koffing-bot, go~!", "Get 'em Koffing-bot~!"]
 dev = True
@@ -58,12 +58,12 @@ def on_ready():
 @client.event
 @asyncio.coroutine
 def on_message(message):
-    logger.debug('Recieved message from "%s" (%s) in %s::%s', message.author.display_name, message.author.name, message.server.name, message.channel.name)
-    
     if not authorized(message.server, message.channel):
         return
     if message.author.id==client.user.id:
         return
+
+    logger.info('Recieved message from "%s" (%s) in %s::%s', message.author.display_name, message.author.name, message.server.name, message.channel.name)
 
     server = message.server
     channel = message.channel
@@ -73,7 +73,7 @@ def on_message(message):
     if(content.startswith('/koffing ')):
         content = content.replace('/koffing ', '', 1) #remove the first '/koffing' from the string for easier parsing of command
 
-        if content.startswith('help') and not muted(server, message):
+        if content.startswith('help') and not muted(server, channel):
             yield from client.send_message(channel, HELP)        
 
         elif content.startswith('feature') and not muted(server, channel):
@@ -92,7 +92,7 @@ def on_message(message):
 
         elif content.startswith('mute'):
             content = content.replace('mute ', '', 1)
-            if not privileged(author) muted(server, channel):
+            if not privileged(author):
                 if not muted(server, channel):
                     yield from client.send_message(channel, "I'm afraid you can't do that {}".format(author.mention))
             else:
@@ -110,12 +110,16 @@ def on_message(message):
                     yield from client.send_message(channel, response)
                 unmute(server, channel)
 
-        elif content.startswith('return') and privileged(author):
-            yield from shutdown_message()
-            yield from client.logout()
+        elif content.startswith('return'):
+            if not privileged(author):
+                if not muted(server, channel):
+                    yield from client.send_message(channel, "I'm afraid you can't do that {}".format(author.mention))
+            else:
+                yield from shutdown_message()
+                yield from client.logout()
 
         elif not muted(server, channel):
-            yield from client.send_message(channel, "Koff koff~ \nInvalid command, please use /koffing help for usage")
+            yield from client.send_message(channel, "Koff koff {}~ \n`Invalid command, please use /koffing help for usage`".format(author.mention))
     else:
         yield from check_for_koffing(message)
 
@@ -130,8 +134,8 @@ def shutdown_message():
 
 @asyncio.coroutine
 def check_for_koffing(message):
-    if 'koffing' in message.content:
-        logger.debug('  Responding to "%s" (%s) in %s::%s', message.author.display_name, message.author.name, message.server.name, message.channel.name)
+    if 'koffing' in message.content or client.user.mentioned_in(message):
+        logger.info('  Responding to "%s" (%s) in %s::%s', message.author.display_name, message.author.name, message.server.name, message.channel.name)
         
         if can_message(message.server, message.channel):
             yield from client.send_typing(message.channel)
@@ -139,6 +143,7 @@ def check_for_koffing(message):
         response, emoji = generate_koffing(message.server)
 
         if can_message(message.server, message.channel):
+            asyncio.sleep(randint(0,2))
             yield from client.send_message(message.channel, response)
             yield from client.add_reaction(message, emoji)
 
@@ -166,7 +171,7 @@ def remove_admin(message):
     channel = message.channel
     for user in users:
         user_str = '{}#{}'.format(user.name, user.discriminator)
-        if user_str in admin_user:
+        if user_str in admin_users:
             admin_users.remove(user_str)
             if not muted(message.server, channel):
                 yield from client.send_message(channel, "Removed {} from the admin list.".format(user.mention))
