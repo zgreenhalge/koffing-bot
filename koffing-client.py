@@ -12,7 +12,7 @@ from random import randint
 
 LOG_FORMAT = '[%(asctime)-15s] [%(levelname)s] - %(message)s'
 TOKEN = 'MjU2MjIyMjU4NjQ3OTI0NzM3.CypBIw.c3RDGrECBWYVwV77aN_2o0j8BkU'
-FEATURE_LIST = '```Current feature list (*=requires privilege):\n -responds in text channels!\n -responds in voice channels (PLANNED)\n -roll call (PLANNED)\n -song of the day (PLANNED)\n -elo lookup [Overwatch] (PLANNED) \n -elo lookup [LoL] (PLANNED) \n -mute\n -vote (PLANNED)```'
+FEATURE_LIST = '```Current feature list (*=requires privilege):\n -responds in text channels!\n -responds in voice channels (PLANNED)\n -roll call (PLANNED)\n -song of the day (PLANNED)\n -elo lookup [Overwatch] (PLANNED) \n -elo lookup [LoL] (PLANNED) \n -mute\n -vote (PLANNED)\n -blacklist (PLANNED)```'
 HELP = 'Koffing~~ I will respond any time my name is called!```\nCommands (*=requires privilege):\n /koffing help\n /koffing features\n*/koffing mute\n*/koffing unmute\n*/koffing admin [list] [remove (@user) [@user]] [add (@user) [@user]]\n*/koffing return```'
 CONFIG = 'koffing.cfg'
 start_messages = ["Koffing-bot, go~!", "Get 'em Koffing-bot~!"]
@@ -63,7 +63,7 @@ def on_message(message):
     if message.author.id==client.user.id:
         return
 
-    logger.info('Recieved message from "%s" (%s) in %s::%s', message.author.display_name, message.author.name, message.server.name, message.channel.name)
+    logger.info('Recieved message from "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.server.name, message.channel.name)
 
     server = message.server
     channel = message.channel
@@ -74,17 +74,17 @@ def on_message(message):
         content = content.replace('/koffing ', '', 1) #remove the first '/koffing' from the string for easier parsing of command
 
         if content.startswith('help') and not muted(server, channel):
-            yield from client.send_message(channel, HELP)        
+            yield from respond(message, HELP)        
 
         elif content.startswith('feature') and not muted(server, channel):
-            yield from client.send_message(channel, FEATURE_LIST)
+            yield from respond(message, FEATURE_LIST)
 
         elif content.startswith('admin'):
             content = content.replace('admin ', '', 1)
             if not privileged(author) and not muted(server, channel):
-                yield from client.send_message(channel, "I'm afraid you can't do that {}".format(author.mention))
+                yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
             elif content.startswith('list') and not muted(server, channel):
-                yield from client.send_message(channel, get_admin_list(server))
+                yield from respond(message, get_admin_list(server))
             elif (content.startswith('rm') or content.startswith('remove')):
                 yield from remove_admin(message)
             elif content.startswith('add'):
@@ -94,32 +94,32 @@ def on_message(message):
             content = content.replace('mute ', '', 1)
             if not privileged(author):
                 if not muted(server, channel):
-                    yield from client.send_message(channel, "I'm afraid you can't do that {}".format(author.mention))
+                    yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
             else:
                 if not muted(server, channel):
-                    yield from client.send_message(channel, "Koffing...")
+                    yield from respond(message, "Koffing...")
                 mute(server, channel)
 
         elif content.startswith('unmute'):
             if not privileged(author):
                 if not muted(server, channel):
-                    yield from client.send_message(channel, "I'm afraid you can't do that {}".format(author.mention))
+                    yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
             else:
                 if muted(server, channel):
                     response, emoji = generate_koffing(server)
-                    yield from client.send_message(channel, response)
+                    yield from respond(message, response)
                 unmute(server, channel)
 
         elif content.startswith('return'):
             if not privileged(author):
                 if not muted(server, channel):
-                    yield from client.send_message(channel, "I'm afraid you can't do that {}".format(author.mention))
+                    yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
             else:
                 yield from shutdown_message()
                 yield from client.logout()
 
         elif not muted(server, channel):
-            yield from client.send_message(channel, "Koff koff {}~ \n`Invalid command, please use /koffing help for usage`".format(author.mention))
+            yield from respond(message, "Koff koff {}~ \n`Invalid command, please use /koffing help for usage`".format(author.mention))
     else:
         yield from check_for_koffing(message)
 
@@ -135,7 +135,6 @@ def shutdown_message():
 @asyncio.coroutine
 def check_for_koffing(message):
     if 'koffing' in message.content or client.user.mentioned_in(message):
-        logger.info('  Responding to "%s" (%s) in %s::%s', message.author.display_name, message.author.name, message.server.name, message.channel.name)
         
         if can_message(message.server, message.channel):
             yield from client.send_typing(message.channel)
@@ -144,7 +143,7 @@ def check_for_koffing(message):
 
         if can_message(message.server, message.channel):
             asyncio.sleep(randint(0,2))
-            yield from client.send_message(message.channel, response)
+            yield from respond(message, response)
             yield from client.add_reaction(message, emoji)
 
         # need to figure out ffmpeg before this will work
@@ -159,22 +158,27 @@ def add_admin(message):
     users = message.mentions 
     channel = message.channel
     for user in users:
-        user_str = '{}#{}'.format(user.name, user.discriminator)
+        user_str = get_discriminating_name(user)
         if user_str not in admin_users:
             admin_users.append(user_str)
             if not muted(message.server, channel):
-                yield from client.send_message(channel, "Added {} to the admin list.".format(user.mention))
+                yield from respond(message, "Added {} to the admin list.".format(user.mention))
 
 @asyncio.coroutine
 def remove_admin(message):
     users = message.mentions
     channel = message.channel
     for user in users:
-        user_str = '{}#{}'.format(user.name, user.discriminator)
+        user_str = get_discriminating_name(user)
         if user_str in admin_users:
             admin_users.remove(user_str)
             if not muted(message.server, channel):
-                yield from client.send_message(channel, "Removed {} from the admin list.".format(user.mention))
+                yield from respond(message, "Removed {} from the admin list.".format(user.mention))
+
+@asyncio.coroutine
+def respond(message, text):
+    logger.info('  Responding to "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.server.name, message.channel.name)
+    yield from client.send_message(message.channel, text)
 
 def get_admin_list(server):
     admin_str = 'listens to the following trainers:\n'
@@ -188,7 +192,10 @@ def can_message(server, channel):
     return authorized(server, channel) and not muted(server, channel)
 
 def privileged(user):
-    return '{}#{}'.format(user.name, user.discriminator) in admin_users
+    return get_discriminating_name(user) in admin_users
+
+def get_discriminating_name(user):
+    return '{}#{}'.format(user.name, user.discriminator)
 
 def authorized(server, channel):
     if server.id in authorized_servers:
@@ -233,7 +240,7 @@ def generate_koffing(server):
 def save_config():
     logger.info('Writing settings to file...')
     file = open(CONFIG, 'w')
-    json_str = json.dumps({'authorized_channels': authorized_channels, 'authorized_servers': authorized_servers, 'muted_channels': muted_channels, 'admin_users': admin_users})
+    json_str = json.dumps({'authorized_channels': authorized_channels, 'authorized_servers': authorized_servers, 'muted_channels': muted_channels, 'admin_users': admin_users}, sort_keys=True, indent=4)
     file.write(json_str)
     file.close()
 
