@@ -3,7 +3,6 @@ A simple discord bot created using [***discord.py***](https://github.com/Rapptz/
 Responds emphatically to `koffing` in any channel. 
 
 Commands:
-```
 * /koffing help
   * Displays help
 * /koffing features
@@ -12,7 +11,7 @@ Commands:
   * Mutes koffing bot in the channel where the command was given. Requires user to be on admin list
 * /koffing unmute
   * Unmutes koffing bot in the channel where the command was given. Requires user to be on admin list
-```
+
 
 To run koffing bot locally:
 
