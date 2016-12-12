@@ -16,7 +16,7 @@ Commands:
 /koffing unmute
   Unmutes koffing bot in the channel where the command was given. Requires user to be on admin list
   
-/koffing admin [list] [@user]
+/koffing admin [list] [add @user] [remove @user]
   Provides admin administration. List admins, add a new admin, remove an old admin
 ```
 
