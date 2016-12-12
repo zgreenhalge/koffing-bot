@@ -1,10 +1,30 @@
 A simple discord bot created using [***discord.py***](https://github.com/Rapptz/discord.py).
 
-Responds to the following commands:
+Responds emphatically to `koffing` in any channel. 
 
-- !koffing
-  - Duh
-- !test
-  - Tags the user who messages this command, with some extra snark
-- !kill
-  - Kills the client remotely after sending a nice shutdown message
+Commands:
+```
+* /koffing help
+  * Displays help
+* /koffing features
+  * Shows a list of completed and planned features
+* /koffing mute
+  * Mutes koffing bot in the channel where the command was given. Requires user to be on admin list
+* /koffing unmute
+  * Unmutes koffing bot in the channel where the command was given. Requires user to be on admin list
+```
+
+To run koffing bot locally:
+
+1. Install [discord.py](https://github.com/Rapptz/discord.py) with the command:
+  * `python3 -m pip install -U discord.py`
+2. Launch koffing-bot:
+  * `python koffing-client.py`
+
+
+To enable voice support:
+
+1. Install discord.py voice support with the command:
+  * `python -m pip -U discord.py[voice]`
+2. Install [ffmpeg](https://ffmpeg.org/download.html) for your OS
+3. Place ffmpeg on your path
