@@ -16,7 +16,7 @@ Commands:
 
 To run koffing bot locally:
 
-1. Install [discord.py](https://github.com/Rapptz/discord.py) with the command:
+1. Install [**discord.py**](https://github.com/Rapptz/discord.py) with the command:
   * `python3 -m pip install -U discord.py`
 2. Launch koffing-bot:
   * `python koffing-client.py`
@@ -24,7 +24,7 @@ To run koffing bot locally:
 
 To enable voice support:
 
-1. Install discord.py voice support with the command:
+1. Install [**discord.py**](https://github.com/Rapptz/discord.py) voice support with the command:
   * `python -m pip -U discord.py[voice]`
-2. Install [ffmpeg](https://ffmpeg.org/download.html) for your OS
-3. Place ffmpeg on your path
+2. Install [**ffmpeg**](https://ffmpeg.org/download.html) for your OS
+3. Place [**ffmpeg**](https://ffmpeg.org/download.html) on your path
