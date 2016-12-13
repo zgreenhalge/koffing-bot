@@ -15,6 +15,7 @@ TOKEN = 'MjU2MjIyMjU4NjQ3OTI0NzM3.CypBIw.c3RDGrECBWYVwV77aN_2o0j8BkU'
 FEATURE_LIST = '```Current feature list (*=requires privilege):\n -responds in text channels!\n -responds in voice channels (PLANNED)\n -roll call (PLANNED)\n -song of the day (PLANNED)\n -elo lookup [Overwatch] (PLANNED) \n -elo lookup [LoL] (PLANNED) \n -mute\n -vote (PLANNED)\n -blacklist (PLANNED)```'
 HELP = 'Koffing~~ I will respond any time my name is called!```\nCommands (*=requires privilege):\n /koffing help\n /koffing features\n*/koffing mute\n*/koffing unmute\n*/koffing admin [list] [remove (@user) [@user]] [add (@user) [@user]]\n*/koffing return```'
 CONFIG = 'koffing.cfg'
+FEAT_TOGGLE = "feature_toggle.cfg"
 start_messages = ["Koffing-bot, go~!", "Get 'em Koffing-bot~!"]
 dev = True
 #--------------------------------------------------------------------
@@ -33,7 +34,7 @@ authorized_servers = settings['authorized_servers']
 authorized_channels = settings['authorized_channels']
 muted_channels = settings['muted_channels']
 admin_users = settings['admin_users']
-
+enabled_features = {"mute": True, "features": True, "text_response": True, "voice_response": False, "sotd_pin": False}
 client = discord.Client()
 #--------------------------------------------------------------------
 
@@ -120,12 +121,21 @@ def on_message(message):
 
         elif not muted(server, channel):
             yield from respond(message, "Koff koff {}~ \n`Invalid command, please use /koffing help for usage`".format(author.mention))
+    elif content.startswith('#SotD'):
+        try:
+            yield from client.pin_message(message)
+        except NotFound:
+            logger.warn('Message or channel has been deleted, pin failed')
+        except Forbidden:
+            logger.warn('Koffing-bot does not have sufficient permissions to pin in %s::%s'.format(server.name, channel.name))
+        except (Error, Exception) as e:
+            logger.error('Could not pin message: {}'.format(e))
     else:
         yield from check_for_koffing(message)
 
 @asyncio.coroutine
 def shutdown_message():
-    save_config()
+    save_all()
     for server in client.servers:
         for channel in server.channels:
             if channel.type==discord.ChannelType.text and can_message(server, channel):
@@ -146,10 +156,13 @@ def check_for_koffing(message):
             yield from respond(message, response)
             yield from client.add_reaction(message, emoji)
 
+        return #RETURN HERE TO STOP VOICE FROM HAPENING BEFORE IT WORKS
         # need to figure out ffmpeg before this will work
         if message.author.voice_channel != None:
             logger.debug('Attempting to play in voice channel %s', message.author.voice_channel.name)
-            voice = yield from client.join_voice_channel(message.author.voice_channel)
+            voice = voice_client_int(message.server)
+            if voice == None or voice.channel != message.author.voice_channel:
+                voice = yield from client.join_voice_channel(message.author.voice_channel)
             player = voice.create_ffmpeg_player('koffing.mp3')
             player.start()
 
@@ -237,10 +250,21 @@ def generate_koffing(server):
         reponse = 'Koff' + randint(1,5)*'i' + 'ng' + randint(1,5)*'!'
     return response, koffing_emoji
 
+def save_all():
+    save_config()
+    save_feature_toggle()
+
 def save_config():
-    logger.info('Writing settings to file...')
+    logger.info('Writing settings to disk...')
     file = open(CONFIG, 'w')
     json_str = json.dumps({'authorized_channels': authorized_channels, 'authorized_servers': authorized_servers, 'muted_channels': muted_channels, 'admin_users': admin_users}, sort_keys=True, indent=4)
+    file.write(json_str)
+    file.close()
+
+def save_feature_toggle():
+    logger.info("Writing features to disk...")
+    file = open(FEAT_TOGGLE, 'w')
+    json_str = json.dumps(enabled_features)
     file.write(json_str)
     file.close()
 
