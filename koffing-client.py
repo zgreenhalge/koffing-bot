@@ -264,7 +264,7 @@ def save_config():
 def save_feature_toggle():
     logger.info("Writing features to disk...")
     file = open(FEAT_TOGGLE, 'w')
-    json_str = json.dumps(enabled)
+    json_str = json.dumps(enabled, sort_keys=True, indent=4)
     file.write(json_str)
     file.close()
 
