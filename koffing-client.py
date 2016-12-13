@@ -34,7 +34,7 @@ authorized_servers = settings['authorized_servers']
 authorized_channels = settings['authorized_channels']
 muted_channels = settings['muted_channels']
 admin_users = settings['admin_users']
-enabled_features = {"mute": True, "features": True, "text_response": True, "voice_response": False, "sotd_pin": False}
+enabled = {"mute": True, "features": True, "text_response": True, "voice_response": False, "sotd_pin": False}
 client = discord.Client()
 #--------------------------------------------------------------------
 
@@ -77,7 +77,7 @@ def on_message(message):
         if content.startswith('help') and not muted(server, channel):
             yield from respond(message, HELP)        
 
-        elif content.startswith('feature') and not muted(server, channel):
+        elif content.startswith('feature') and not muted(server, channel) and enabled["feature"]:
             yield from respond(message, FEATURE_LIST)
 
         elif content.startswith('admin'):
@@ -91,7 +91,7 @@ def on_message(message):
             elif content.startswith('add'):
                 yield from add_admin(message)
 
-        elif content.startswith('mute'):
+        elif content.startswith('mute') and enabled["mute"]:
             content = content.replace('mute ', '', 1)
             if not privileged(author):
                 if not muted(server, channel):
@@ -101,7 +101,7 @@ def on_message(message):
                     yield from respond(message, "Koffing...")
                 mute(server, channel)
 
-        elif content.startswith('unmute'):
+        elif content.startswith('unmute') and enabled["mute"]:
             if not privileged(author):
                 if not muted(server, channel):
                     yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
@@ -121,7 +121,7 @@ def on_message(message):
 
         elif not muted(server, channel):
             yield from respond(message, "Koff koff {}~ \n`Invalid command, please use /koffing help for usage`".format(author.mention))
-    elif content.startswith('#SotD'):
+    elif content.startswith('#SotD') and enabled["sotd_pin"]:
         try:
             yield from client.pin_message(message)
         except NotFound:
@@ -151,14 +151,14 @@ def check_for_koffing(message):
 
         response, emoji = generate_koffing(message.server)
 
-        if can_message(message.server, message.channel):
+        if can_message(message.server, message.channel) and enabled["text_response"]:
             asyncio.sleep(randint(0,2))
             yield from respond(message, response)
             yield from client.add_reaction(message, emoji)
 
         return #RETURN HERE TO STOP VOICE FROM HAPENING BEFORE IT WORKS
         # need to figure out ffmpeg before this will work
-        if message.author.voice_channel != None:
+        if message.author.voice_channel != None and enabled["voice_response"]:
             logger.debug('Attempting to play in voice channel %s', message.author.voice_channel.name)
             voice = voice_client_int(message.server)
             if voice == None or voice.channel != message.author.voice_channel:
@@ -264,7 +264,7 @@ def save_config():
 def save_feature_toggle():
     logger.info("Writing features to disk...")
     file = open(FEAT_TOGGLE, 'w')
-    json_str = json.dumps(enabled_features)
+    json_str = json.dumps(enabled)
     file.write(json_str)
     file.close()
 
