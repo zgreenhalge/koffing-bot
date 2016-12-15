@@ -73,7 +73,7 @@ def on_message(message):
 
 	server = message.server
 	channel = message.channel
-	content = message.content
+	content = message.content.lower()
 	author = message.author
 
 	if(content.startswith('/koffing ')):
@@ -158,7 +158,7 @@ def shutdown_message():
 
 @asyncio.coroutine
 def check_for_koffing(message):
-	if 'koffing' in message.content or client.user.mentioned_in(message):
+	if 'koffing' in message.content.lower() or client.user.mentioned_in(message):
 
 		if can_message(message.server, message.channel) and enabled["text_response"]:
 			# Quiet skip this, since that's the point of disabled text response
@@ -207,6 +207,9 @@ def respond(message, text):
 @asyncio.coroutine
 def pin(message):
 	try:
+		emoji = get_koffing_emoji()
+		if emoji != None:
+			yield from client.add_reaction(message, emoji)
 		yield from client.pin_message(message)
 	except NotFound:
 		logger.warn('Message or channel has been deleted, pin failed')
@@ -298,11 +301,8 @@ def get_date():
 	return datetime.datetime.fromtimestamp(time.time()).strftime('%m-%d-%Y')        
 
 def generate_koffing(server):
-	koffing_emoji = None
+	koffing_emoji = get_koffing_emoji()
 	koffing_str = None
-	for emoji in server.emojis:
-		if emoji.name == 'koffing':
-			koffing_emoji = emoji
 
 	if koffing_emoji != None:
 		num_koffs = randint(2,5)
@@ -311,6 +311,13 @@ def generate_koffing(server):
 	else:
 		reponse = 'Koff' + randint(1,5)*'i' + 'ng' + randint(1,5)*'!'
 	return response, koffing_emoji
+
+def get_koffing_emoji():
+	koffing_emoji = None
+	for emoji in server.emojis:
+		if emoji.name == 'koffing':
+			koffing_emoji = emoji
+	return koffing_emoji
 
 def save_all():
 	save_config()
