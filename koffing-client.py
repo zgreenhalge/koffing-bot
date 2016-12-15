@@ -77,7 +77,7 @@ def on_message(message):
 	author = message.author
 
 	if(content.startswith('/koffing ')):
-		content = content.replace('/koffing ', '', 1) #remove the first '/koffing' from the string for easier parsing of command
+		content = content.replace('/koffing', '', 1).lstrip().rstrip()
 
 		if content.startswith('help'):
 			yield from respond(message, HELP)        
@@ -89,7 +89,7 @@ def on_message(message):
 				yield from respond(message, FEATURE_LIST)
 
 		elif content.startswith('admin'):
-			content = content.replace('admin ', '', 1)
+			content = content.replace('admin', '', 1).lstrip().rstrip()
 			if not privileged(author):
 				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
 			elif content.startswith('list'):
@@ -100,7 +100,6 @@ def on_message(message):
 				yield from add_admin(message)
 
 		elif content.startswith('mute'):
-			content = content.replace('mute ', '', 1)
 			if not privileged(author):
 				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
 			elif not enabled["mute"]:
@@ -121,18 +120,6 @@ def on_message(message):
 					yield from client.send_message(channel, response)
 				unmute(server, channel)
 
-		elif content.startswith('pin'):
-			if not privileged(author):
-				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
-			elif not enabled['sotd_pin']:
-				yield from respond(message, "Song of the Day pin feature is disabled")
-			else:
-				content = content.replace('pin', '', 1)
-				if len(content) > 0:
-					pin_all(content)
-				else:
-					pin_all('#SotD')
-
 		elif content.startswith('return'):
 			if not privileged(author):
 				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
@@ -145,14 +132,14 @@ def on_message(message):
 	elif content.startswith('#SotD') and enabled["sotd_pin"]:
 		# Quiet skip this, since the user may not be actively asking for it
 		logger.info('  Pinning #SotD')
-		pin(message)
+		yield from pin(message)
 
 	elif content.startswith('/vote'):
 		if not enabled['voting']:
 			yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
 		else:
-			content = content.replace('/vote', '', 1)
-			if content.startswith(' leaderboard') or content.startswith(' boards') or content.startswith(' leaders'):
+			content = content.replace('/vote', '', 1).lstrip().rstrip()
+			if content.startswith('leaderboard') or content.startswith('boards') or content.startswith('leaders'):
 				yield from respond(message, get_vote_leaderboards(server))
 			else:
 				yield from place_vote(message)
@@ -216,12 +203,6 @@ def respond(message, text):
 	if not muted(message.server, message.channel):
 		logger.info('  Responding to "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.server.name, message.channel.name)
 		yield from client.send_message(message.channel, text)
-
-@asyncio.coroutine
-def pin_all(tag):
-	for message in client.messages:
-		if message.content.startswith(tag):
-			yield from pin(message)
 
 @asyncio.coroutine
 def pin(message):
