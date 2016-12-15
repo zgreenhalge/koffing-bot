@@ -36,11 +36,12 @@ authorized_servers = settings['authorized_servers']
 authorized_channels = settings['authorized_channels']
 muted_channels = settings['muted_channels']
 admin_users = settings['admin_users']
-enabled = {"mute": True, "features": True, "text_response": True, "voice_response": False, "sotd_pin": False}
-client = discord.Client()
+enabled = json.load(open(FEATURE_FILE_NAME))
 #--------------------------------------------------------------------
-votes = {}
+votes = json.load(open(VOTE_FILE_NAME))
 
+#--------------------------------------------------------------------
+client = discord.Client()
 
 @client.event
 @asyncio.coroutine
@@ -143,14 +144,18 @@ def on_message(message):
 			yield from respond(message, "Koff koff {}~ \n`Invalid command, please use /koffing help for usage`".format(author.mention))
 	elif content.startswith('#SotD') and enabled["sotd_pin"]:
 		# Quiet skip this, since the user may not be actively asking for it
+		logger.info('  Pinning #SotD')
 		pin(message)
 
 	elif content.startswith('/vote'):
-		content = content.replace('/vote', '', 1)
-		if content.startswith('leaderboards') or content.startswith('boards'):
-			yield from respond(message, get_vote_leaderboards(server))
+		if not enabled['voting']:
+			yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
 		else:
-			place_vote(message)
+			content = content.replace('/vote', '', 1)
+			if content.startswith(' leaderboard') or content.startswith(' boards') or content.startswith(' leaders'):
+				yield from respond(message, get_vote_leaderboards(server))
+			else:
+				yield from place_vote(message)
 
 	else:
 		yield from check_for_koffing(message)
@@ -231,13 +236,22 @@ def pin(message):
 
 @asyncio.coroutine
 def place_vote(message):
+	if len(message.mentions) == 0:
+		yield from respond(message, "You need to tag someone to vote for them!")
+		return
+
 	member = message.mentions[0]
 	name = get_discriminating_name(member)
-	if name in votes:
-		votes[name] = votes[name] + 1
+	
+	if member.id == message.author.id:
+		yield from respond(message, "You can't vote for yourself {}....".format(member.mention))
+
 	else:
-		votes[name] = 1
-	yield from respond(message, "{}, you just got a vote! Total votes: {}".format(member.mention, votes[name]))
+		if name in votes:
+			votes[name] = votes[name] + 1
+		else:
+			votes[name] = 1
+		yield from respond(message, "{}, you just got a vote! Total votes: {}".format(member.mention, votes[name]))
 
 def get_admin_list(server):
 	admin_str = 'listens to the following trainers:\n'
@@ -248,16 +262,23 @@ def get_admin_list(server):
 	return admin_str
 
 def get_vote_leaderboards(server):
-	channel_leaders = {}
-	for user in votes:
-		member = server.get_member_named(user)
+	server_leaders = []
+	for user_name in votes:
+		member = server.get_member_named(user_name)
 		if member != None:
-			channel_leaders[member] = user
-	sorted_ch_lead = sorted(channel_leaders.items(), key=votes[operator.itemgetter(1)]) #should sort by votes per user
-	
-	leaderboard_str = 'Current leaderboard:\n```'
-	for member, name in sorted_ch_lead.items():
-		leaderboard_str += '{}: {}'.format(member.mention, votes[name])
+			server_leaders.append((member, votes[user_name]))
+
+	if len(server_leaders) == 0:
+		return 'No one in {} has recieved any votes!'.format(server.name)
+
+	sorted_ch_lead = sorted(server_leaders, key=lambda tup: tup[1], reverse=True)
+
+	leaderboard_str = 'Current leaderboard: {} is in the lead!\n```'.format(sorted_ch_lead[0][0].mention)
+	for tup in sorted_ch_lead:
+		if tup[0].nick != None:
+			leaderboard_str += '{} ({}): {}\n'.format(tup[0].name, tup[0].nick, tup[1])
+		else:
+			leaderboard_str += '{}: {}\n'.format(tup[0].name, tup[1])
 	leaderboard_str +='```'
 	return leaderboard_str
 
