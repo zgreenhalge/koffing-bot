@@ -1,12 +1,13 @@
 import discord
 import asyncio
 import sys
-import datetime
 import time
 import logging
 import json
 import operator
 from random import randint
+from datetime import datetime
+from datetime import timedelta
 
 # Bot Testing (256173272637374464)
 # Dan (245295076865998869)
@@ -22,7 +23,7 @@ start_messages = ["Koffing-bot, go~!", "Get 'em Koffing-bot~!"]
 dev = True
 #--------------------------------------------------------------------
 #Logging set up
-date = datetime.datetime.fromtimestamp(time.time()).strftime('%m-%d-%Y')
+date = datetime.fromtimestamp(time.time()).strftime('%m-%d-%Y')
 logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
 fh = logging.FileHandler("LOG_" + date + ".txt")
@@ -140,7 +141,7 @@ def on_message(message):
 		else:
 			content = content.replace('/vote', '', 1).lstrip().rstrip()
 			if content.startswith('leaderboard') or content.startswith('boards') or content.startswith('leaders'):
-				yield from respond(message, get_vote_leaderboards(server))
+				yield from respond(message, get_vote_leaderboards(server, author))
 			else:
 				yield from place_vote(message)
 
@@ -231,11 +232,17 @@ def place_vote(message):
 		yield from respond(message, "You can't vote for yourself {}....".format(member.mention))
 
 	else:
-		if name in votes:
-			votes[name] = votes[name] + 1
+		cur_votes, start_time = get_current_votes()
+		if cur_votes == None:
+			cur_votes = {name: 1}
+			votes[date_to_string(datetime.now().date())] = cur_votes
 		else:
-			votes[name] = 1
-		yield from respond(message, "{}, you just got a vote! Total votes: {}".format(member.mention, votes[name]))
+			if name in cur_votes:
+				cur_votes[name] = cur_votes[name] + 1
+			else:
+				cur_votes[name] = 1
+			votes[start_time] = cur_votes
+		yield from respond(message, "{}, you just got a vote! Total votes: {}".format(member.mention, cur_votes[name]))
 
 def get_admin_list(server):
 	admin_str = 'listens to the following trainers:\n'
@@ -245,26 +252,47 @@ def get_admin_list(server):
 			admin_str += ' -' + admin.mention + '\n'
 	return admin_str
 
-def get_vote_leaderboards(server):
+def get_vote_leaderboards(server, requester):
 	server_leaders = []
-	for user_name in votes:
+	cur_votes, start = get_current_votes()
+	if(cur_votes == None):
+		return 'No one in {} has recieved any votes!'.format(server.name)
+
+	for user_name in cur_votes:
 		member = server.get_member_named(user_name)
 		if member != None:
-			server_leaders.append((member, votes[user_name]))
+			server_leaders.append((member, cur_votes[user_name]))
 
 	if len(server_leaders) == 0:
 		return 'No one in {} has recieved any votes!'.format(server.name)
 
 	sorted_ch_lead = sorted(server_leaders, key=lambda tup: tup[1], reverse=True)
 
-	leaderboard_str = 'Current leaderboard: {} is in the lead!\n```'.format(sorted_ch_lead[0][0].mention)
+	leaderboard_str = 'Leaderboard for week of {}: {} is in the lead!\n```'.format(start, sorted_ch_lead[0][0].mention)
 	for tup in sorted_ch_lead:
 		if tup[0].nick != None:
-			leaderboard_str += '{} ({}): {}\n'.format(tup[0].name, tup[0].nick, tup[1])
+			leaderboard_str += '{} ({}): {}'.format(tup[0].name, tup[0].nick, tup[1])
 		else:
-			leaderboard_str += '{}: {}\n'.format(tup[0].name, tup[1])
+			leaderboard_str += '{}: {}'.format(tup[0].name, tup[1])
+		if requester.name == tup[0].name:
+			leaderboard_str +='    <-- It\'s you!\n'
+		else:
+			leaderboard_str +='\n'
 	leaderboard_str +='```'
 	return leaderboard_str
+
+def get_current_votes():
+	now = datetime.now().date()
+	for start in votes:
+		if(now - string_to_date(start) < timedelta(7)):
+			return votes[start], start
+	return None, None
+
+def date_to_string(date):
+	return date.strftime('%Y-%m-%d')
+
+def string_to_date(string):
+	return datetime.strptime(string, '%Y-%m-%d').date()
 
 def can_message(server, channel):
 	return authorized(server, channel) and not muted(server, channel)
@@ -298,7 +326,7 @@ def unmute(server, channel):
 			muted_channels[server.id].remove(channel.name)
 
 def get_date():
-	return datetime.datetime.fromtimestamp(time.time()).strftime('%m-%d-%Y')        
+	return datetime.fromtimestamp(time.time()).strftime('%m-%d-%Y')        
 
 def generate_koffing(server):
 	koffing_emoji = get_koffing_emoji(server)
