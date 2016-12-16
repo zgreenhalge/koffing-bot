@@ -207,7 +207,7 @@ def respond(message, text):
 @asyncio.coroutine
 def pin(message):
 	try:
-		emoji = get_koffing_emoji()
+		emoji = get_koffing_emoji(message.server)
 		if emoji != None:
 			yield from client.add_reaction(message, emoji)
 		yield from client.pin_message(message)
@@ -301,7 +301,7 @@ def get_date():
 	return datetime.datetime.fromtimestamp(time.time()).strftime('%m-%d-%Y')        
 
 def generate_koffing(server):
-	koffing_emoji = get_koffing_emoji()
+	koffing_emoji = get_koffing_emoji(server)
 	koffing_str = None
 
 	if koffing_emoji != None:
@@ -312,7 +312,7 @@ def generate_koffing(server):
 		reponse = 'Koff' + randint(1,5)*'i' + 'ng' + randint(1,5)*'!'
 	return response, koffing_emoji
 
-def get_koffing_emoji():
+def get_koffing_emoji(server):
 	koffing_emoji = None
 	for emoji in server.emojis:
 		if emoji.name == 'koffing':
