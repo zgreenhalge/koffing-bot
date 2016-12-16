@@ -12,7 +12,7 @@ from random import randint
 # Dan (245295076865998869)
 
 LOG_FORMAT = '[%(asctime)-15s] [%(levelname)s] - %(message)s'
-TOKEN = 'MjU2MjIyMjU4NjQ3OTI0NzM3.CypBIw.c3RDGrECBWYVwV77aN_2o0j8BkU'
+TOKEN = 'MjU2MjIyMjU4NjQ3OTI0NzM3.CzUM4A.gSmNOYmh08W_EbF-d9LSPLXo2HY'
 FEATURE_LIST = '```Current feature list (*=requires privilege):\n -responds in text channels!\n -responds in voice channels (PLANNED)\n -roll call (PLANNED)\n -song of the day (PLANNED)\n -elo lookup [Overwatch] (PLANNED) \n -elo lookup [LoL] (PLANNED) \n -mute\n -vote (PLANNED)\n -blacklist (PLANNED)```'
 HELP = 'Koffing~~ I will respond any time my name is called!```\nCommands (*=requires privilege):\n /koffing help\n /koffing features\n*/koffing mute\n*/koffing unmute\n*/koffing admin [list] [remove (@user) [@user]] [add (@user) [@user]]\n*/koffing return```'
 CONFIG_FILE_NAME = 'koffing.cfg'
