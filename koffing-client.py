@@ -37,6 +37,7 @@ authorized_servers = settings['authorized_servers']
 authorized_channels = settings['authorized_channels']
 muted_channels = settings['muted_channels']
 admin_users = settings['admin_users']
+game_str = settings['game']
 enabled = json.load(open(FEATURE_FILE_NAME))
 #--------------------------------------------------------------------
 votes = json.load(open(VOTE_FILE_NAME))
@@ -53,6 +54,9 @@ def on_ready():
 		logger.info('Member of the following servers:')
 		for server in client.servers:
 			logger.info(' %s (%s)', server.name, server.id)
+
+	new_game = discord.Game(name=game_str)
+	yield from client.change_presence(game=new_game)
 
 	for server in client.servers:
 		if server.id in authorized_servers:
@@ -72,9 +76,10 @@ def on_message(message):
 
 	logger.info('Recieved message from "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.server.name, message.channel.name)
 
+	global game_str
 	server = message.server
 	channel = message.channel
-	content = message.content.lower()
+	content = (message.content + '.')[:-1].lower()
 	author = message.author
 
 	if(content.startswith('/koffing ')):
@@ -121,6 +126,16 @@ def on_message(message):
 					yield from client.send_message(channel, response)
 				unmute(server, channel)
 
+		elif content.startswith('game') or content.startswith('play'):
+			if not privileged(author):
+				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
+			elif not enabled["game"]:
+				yield from respond(message, 'Game feature is disabled')
+			else:
+				game_str = message.content[13:].lstrip().rstrip()
+				logger.info("  Setting bot to playing '{}'".format(game_str))
+				yield from client.change_presence(game=discord.Game(name=game_str))
+
 		elif content.startswith('return'):
 			if not privileged(author):
 				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
@@ -130,7 +145,11 @@ def on_message(message):
 
 		else:
 			yield from respond(message, "Koff koff {}~ \n`Invalid command, please use /koffing help for usage`".format(author.mention))
-	elif content.startswith('#SotD') and enabled["sotd_pin"]:
+
+	elif content.startswith('#sotd'):
+		if not enabled['sotd_pin']:
+			logger.info("  sotd_pin is not enabled")
+			return
 		# Quiet skip this, since the user may not be actively asking for it
 		logger.info('  Pinning #SotD')
 		yield from pin(message)
@@ -268,7 +287,7 @@ def get_vote_leaderboards(server, requester):
 
 	sorted_ch_lead = sorted(server_leaders, key=lambda tup: tup[1], reverse=True)
 
-	leaderboard_str = 'Leaderboard for week of {}: {} is in the lead!\n```'.format(start, sorted_ch_lead[0][0].mention)
+	leaderboard_str = '\n \nLeaderboard for week of {}\n{} is in the lead!\nVotes close on {}```'.format(start, sorted_ch_lead[0][0].mention, date_to_string(string_to_date(start) + timedelta(7)))
 	for tup in sorted_ch_lead:
 		if tup[0].nick != None:
 			leaderboard_str += '{} ({}): {}'.format(tup[0].name, tup[0].nick, tup[1])
@@ -354,8 +373,9 @@ def save_all():
 
 def save_config():
 	logger.info('Writing settings to disk...')
+	logger.info(game_str)
 	file = open(CONFIG_FILE_NAME, 'w')
-	json_str = json.dumps({'authorized_channels': authorized_channels, 'authorized_servers': authorized_servers, 'muted_channels': muted_channels, 'admin_users': admin_users}, sort_keys=True, indent=4)
+	json_str = json.dumps({'authorized_channels': authorized_channels, 'authorized_servers': authorized_servers, 'muted_channels': muted_channels, 'admin_users': admin_users, 'game': game_str}, sort_keys=True, indent=4)
 	file.write(json_str)
 	file.close()
 
