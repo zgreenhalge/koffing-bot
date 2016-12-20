@@ -14,8 +14,8 @@ from datetime import timedelta
 
 LOG_FORMAT = '[%(asctime)-15s] [%(levelname)s] - %(message)s'
 TOKEN = 'MjU2MjIyMjU4NjQ3OTI0NzM3.CzUM4A.gSmNOYmh08W_EbF-d9LSPLXo2HY'
-FEATURE_LIST = '```Current feature list (*=requires privilege):\n -responds in text channels!\n -responds in voice channels (PLANNED)\n -roll call (PLANNED)\n -song of the day (PLANNED)\n -elo lookup [Overwatch] (PLANNED) \n -elo lookup [LoL] (PLANNED) \n -mute\n -vote (PLANNED)\n -blacklist (PLANNED)```'
-HELP = 'Koffing~~ I will respond any time my name is called!```\nCommands (*=requires privilege):\n /koffing help\n /koffing features\n*/koffing mute\n*/koffing unmute\n*/koffing admin [list] [remove (@user) [@user]] [add (@user) [@user]]\n*/koffing return```'
+FEATURE_LIST = '```Current feature list (*=requires privilege):\n -responds in text channels!\n -responds in voice channels (PLANNED)\n -roll call (PLANNED)\n -song of the day pinning!\n -elo lookup [Overwatch] (PLANNED) \n -elo lookup [LoL] (PLANNED) \n -mute\n -vote!```'
+HELP = 'Koffing~~ I will respond any time my name is called!```\nCommands (*=requires privilege):\n /koffing help\n /koffing features\n*/koffing mute\n*/koffing unmute\n*/koffing admin [list] [remove (@user) [@user]] [add (@user) [@user]]\n*/koffing play [name]\n*/koffing return```'
 CONFIG_FILE_NAME = 'koffing.cfg'
 FEATURE_FILE_NAME = "feature_toggle.cfg"
 VOTE_FILE_NAME = 'vote_count'
@@ -144,7 +144,7 @@ def on_message(message):
 				yield from client.logout()
 
 		else:
-			yield from respond(message, "Koff koff {}~ \n`Invalid command, please use /koffing help for usage`".format(author.mention))
+			yield from respond(message, "Skronk!".format(author.mention))
 
 	elif content.startswith('#sotd'):
 		if not enabled['sotd_pin']:
@@ -246,6 +246,11 @@ def place_vote(message):
 
 	member = message.mentions[0]
 	name = get_discriminating_name(member)
+	
+	check = message.content.replace('/vote', '', 1)
+	if not check.lstrip().rstrip().startswith(member.mention):
+		yield from respond(message, "Skronk!")
+		return
 	
 	if member.id == message.author.id:
 		yield from respond(message, "You can't vote for yourself {}....".format(member.mention))
@@ -373,7 +378,6 @@ def save_all():
 
 def save_config():
 	logger.info('Writing settings to disk...')
-	logger.info(game_str)
 	file = open(CONFIG_FILE_NAME, 'w')
 	json_str = json.dumps({'authorized_channels': authorized_channels, 'authorized_servers': authorized_servers, 'muted_channels': muted_channels, 'admin_users': admin_users, 'game': game_str}, sort_keys=True, indent=4)
 	file.write(json_str)
