@@ -5,6 +5,7 @@ import time
 import logging
 import json
 import operator
+from TimeoutThread import TimeoutThread
 from random import randint
 from datetime import datetime
 from datetime import timedelta
@@ -19,6 +20,9 @@ HELP = 'Koffing~~ I will respond any time my name is called!```\nCommands (*=req
 CONFIG_FILE_NAME = 'koffing.cfg'
 FEATURE_FILE_NAME = "feature_toggle.cfg"
 VOTE_FILE_NAME = 'vote_count'
+SKRONK_FILE_NAME = 'deskronk_list'
+SKRONKED = "SKRONK'D"
+TIMEOUT = 60
 start_messages = ["Koffing-bot, go~!", "Get 'em Koffing-bot~!"]
 dev = True
 #--------------------------------------------------------------------
@@ -41,7 +45,7 @@ game_str = settings['game']
 enabled = json.load(open(FEATURE_FILE_NAME))
 #--------------------------------------------------------------------
 votes = json.load(open(VOTE_FILE_NAME))
-
+child_threads = []
 #--------------------------------------------------------------------
 client = discord.Client()
 
@@ -60,6 +64,7 @@ def on_ready():
 
 	for server in client.servers:
 		if server.id in authorized_servers:
+			yield from deskronk_all(server)
 			for channel in server.channels:
 				if channel.type==discord.ChannelType.text and can_message(server, channel):
 					logger.info('Alerting %s::%s to bot presence', server.name, channel.name)
@@ -71,10 +76,8 @@ def on_ready():
 def on_message(message):
 	if not authorized(message.server, message.channel):
 		return
-	if message.author.id==client.user.id:
-		return
 
-	logger.info('Recieved message from "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.server.name, message.channel.name)
+	logger.info('Received message from "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.server.name, message.channel.name)
 
 	global game_str
 	server = message.server
@@ -90,7 +93,7 @@ def on_message(message):
 
 		elif content.startswith('feature'):
 			if not enabled['features']:
-				yield from respond(message, 'The planned feature list is not enabled')
+				yield from respond(message, 'The feature list is not enabled')
 			else:
 				yield from respond(message, FEATURE_LIST)
 
@@ -109,7 +112,7 @@ def on_message(message):
 			if not privileged(author):
 				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
 			elif not enabled["mute"]:
-				yield from respond(message, 'Mute feature is disabled')
+				yield from respond(message, 'Mute is not enabled')
 			else:
 				yield from respond(message, "Koffing...")
 				mute(server, channel)
@@ -118,7 +121,7 @@ def on_message(message):
 			if not privileged(author):
 				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
 			elif not enabled["mute"]:
-				yield from respond(message, 'Mute feature is disabled')
+				yield from respond(message, 'Mute is not enabled')
 			else:
 				if muted(server, channel):
 					response, emoji = generate_koffing(server)
@@ -130,7 +133,7 @@ def on_message(message):
 			if not privileged(author):
 				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
 			elif not enabled["game"]:
-				yield from respond(message, 'Game feature is disabled')
+				yield from respond(message, 'Game is not enabled')
 			else:
 				game_str = message.content[13:].lstrip().rstrip()
 				logger.info("  Setting bot to playing '{}'".format(game_str))
@@ -144,7 +147,7 @@ def on_message(message):
 				yield from client.logout()
 
 		else:
-			yield from respond(message, "Skronk!".format(author.mention))
+			yield from respond(message, "Skronk!")
 
 	elif content.startswith('#sotd'):
 		if not enabled['sotd_pin']:
@@ -156,7 +159,7 @@ def on_message(message):
 
 	elif content.startswith('/vote'):
 		if not enabled['voting']:
-			yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
+			yield from respond(message, "Voting is not enabled")
 		else:
 			content = content.replace('/vote', '', 1).lstrip().rstrip()
 			if content.startswith('leaderboard') or content.startswith('boards') or content.startswith('leaders'):
@@ -164,7 +167,15 @@ def on_message(message):
 			else:
 				yield from place_vote(message)
 
+	elif content.startswith('/skronk'):
+		if not enabled['skronk']:
+			logger.info('  Skronking is not enabled -- not responding')
+		else:
+			yield from skronk(message)
+
 	else:
+		if message.author.id==client.user.id:
+			return
 		yield from check_for_koffing(message)
 
 @asyncio.coroutine
@@ -267,6 +278,72 @@ def place_vote(message):
 				cur_votes[name] = 1
 			votes[start_time] = cur_votes
 		yield from respond(message, "{}, you just got a vote! Total votes: {}".format(member.mention, cur_votes[name]))
+
+@asyncio.coroutine
+def skronk(message):
+	if len(message.mentions) == 0:
+		yield from respond(message, "You need to tag someone to vote for them!")
+		return
+
+	member = message.mentions[0]
+	name = get_discriminating_name(member)
+	
+	check = message.content.replace('/skronk', '', 1)
+	if not check.lstrip().rstrip().startswith(member.mention):
+		yield from respond(message, "Blargh!")
+		return
+
+	skronk = get_skronk_role(message.server)
+	if skronk == None:
+		yield from respond(message, "There's no skronk role here!")
+		return
+
+	for role in message.author.roles:
+		if role == skronk:
+			yield from respond(message, "What is skronked may never skronk")
+			return
+
+	for role in member.roles:
+		if role == skronk:
+			yield from respond(message, "{} was already skronked you skronk!".format(member.mention))
+			yield from respond(message, "/skronk {}".format(message.author.mention))
+			return
+
+	if member == message.author:
+		yield from respond(message, "You can't skronk yourself {}... let me help you with that".format(member.mention))
+		yield from respond(message, "/skronk {}".format(member.mention))
+	else:
+		yield from client.add_roles(member, skronk)
+		yield from respond(message, "{} got SKRONK'D!!!!".format(member.mention))
+		thread = TimeoutThread(TIMEOUT, remove_skronk, [member, message])
+		thread.start()
+
+@asyncio.coroutine
+def remove_skronk(member, message):
+	logger.info("Attempting to deskronk {}".format(get_discriminating_name(member)))
+	if client.is_closed:
+		save_skronk(message.server, member)
+		return
+
+	skronk = get_skronk_role(message.server)
+	if skronk != None and skronk in member.roles:
+		yield from client.remove_roles(member, skronk)
+		yield from respond(message, "You're out of the bin {}!".format(member.mention))
+
+@asyncio.coroutine
+def deskronk_all(server):
+	skronks = json.load(open(SKRONK_FILE_NAME))
+	if server.id in skronks:
+		for name in skronks[server.id]:
+			user = server.get_member_named(name)
+			yield from remove_skronk(user, server)
+
+def get_skronk_role(server):
+	for role in server.roles:
+		if role.name == SKRONKED:
+			return role
+	logger.info("Did not find role named {}".format(SKRONKED))
+	return None
 
 def get_admin_list(server):
 	admin_str = 'listens to the following trainers:\n'
@@ -377,24 +454,42 @@ def save_all():
 	save_votes()
 
 def save_config():
+	contents = {'authorized_channels': authorized_channels, 'authorized_servers': authorized_servers, 'muted_channels': muted_channels, 'admin_users': admin_users, 'game': game_str}
 	logger.info('Writing settings to disk...')
-	file = open(CONFIG_FILE_NAME, 'w')
-	json_str = json.dumps({'authorized_channels': authorized_channels, 'authorized_servers': authorized_servers, 'muted_channels': muted_channels, 'admin_users': admin_users, 'game': game_str}, sort_keys=True, indent=4)
-	file.write(json_str)
-	file.close()
+	save_file(CONFIG_FILE_NAME, contents)
 
 def save_feature_toggle():
 	logger.info("Writing features to disk...")
-	file = open(FEATURE_FILE_NAME, 'w')
-	json_str = json.dumps(enabled, sort_keys=True, indent=4)
-	file.write(json_str)
-	file.close()
+	save_file(FEATURE_FILE_NAME, enabled)
 
 def save_votes():
 	logger.info('Writing votes to disk...')
-	file = open(VOTE_FILE_NAME, 'w')
-	json_str = json.dumps(votes,sort_keys=True, indent=4)
+	save_file(VOTE_FILE_NAME, votes)
+
+def save_skronk(server, member):
+	saved_skronks = json.load(open(SKRONK_FILE_NAME, 'r'))
+	name = get_discriminating_name(member)
+	if server.id not in saved_skronks:
+		saved_skronks[server.id] = [name]
+	else:
+		while saved_skronks[server.id].count(name) > 0:
+			saved_skronks[server.id].remove(name)
+		saved_skronks[server.id].append(name)
+	logger.info('Saving skronk...')
+	save_file(SKRONK_FILE_NAME, saved_skronks)
+
+def clear_skronks():
+	file = open(SKRONK_FILE_NAME, 'w')
+	file.write('')
+	file.close()
+
+def save_file(name, obj):
+	file = open(name, 'w')
+	json_str = json.dumps(obj, sort_keys=True, indent=4)
 	file.write(json_str)
 	file.close()
 
+logger.info("Starting client with token %s" % TOKEN)
 client.run(TOKEN)
+for thread in child_threads:
+	thread.join()
