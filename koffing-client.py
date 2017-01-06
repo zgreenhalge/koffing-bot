@@ -66,7 +66,7 @@ def on_ready():
 		if server.id in authorized_servers:
 			yield from deskronk_all(server)
 			for channel in server.channels:
-				if channel.type==discord.ChannelType.text and can_message(server, channel):
+				if channel.type==discord.ChannelType.text and can_message(server, channel) and enabled['greeting']:
 					logger.info('Alerting %s::%s to bot presence', server.name, channel.name)
 					yield from client.send_message(channel, start_messages[randint(0, len(start_messages)-1)])
 				
