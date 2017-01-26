@@ -27,7 +27,7 @@ start_messages = ["Koffing-bot, go~!", "Get 'em Koffing-bot~!"]
 dev = True
 #--------------------------------------------------------------------
 #Logging set up
-date = datetime.fromtimestamp(time.time()).strftime('%m-%d-%Y')
+date = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d')
 logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
 fh = logging.FileHandler("LOG_" + date + ".txt")
@@ -161,9 +161,12 @@ def on_message(message):
 		if not enabled['voting']:
 			yield from respond(message, "Voting is not enabled")
 		else:
+			# check vote timeout & reset if needed
 			content = content.replace('/vote', '', 1).lstrip().rstrip()
 			if content.startswith('leaderboard') or content.startswith('boards') or content.startswith('leaders'):
 				yield from respond(message, get_vote_leaderboards(server, author))
+			elif content.startswith('history'):
+				yield from respond(message, get_vote_history(server, author))
 			else:
 				yield from place_vote(message)
 
@@ -183,7 +186,7 @@ def shutdown_message():
 	save_all()
 	for server in client.servers:
 		for channel in server.channels:
-			if channel.type==discord.ChannelType.text and can_message(server, channel):
+			if channel.type==discord.ChannelType.text and can_message(server, channel) and enabled['greeting']:
 				logger.info('Alerting %s::%s to bot shutdown', server.name, channel.name)
 				yield from client.send_message(channel, 'Koffing-bot is going back to its pokeball~!')              
 
@@ -258,8 +261,9 @@ def place_vote(message):
 	member = message.mentions[0]
 	name = get_discriminating_name(member)
 	
-	check = message.content.replace('/vote', '', 1)
+	check = message.content.replace('/vote', '', 1).lstrip().rstrip()
 	if not check.lstrip().rstrip().startswith(member.mention):
+		logger.info("  Could not calculate vote: '{}', looking for {}".format(check, member.mention))
 		yield from respond(message, "Skronk!")
 		return
 	
@@ -371,16 +375,56 @@ def get_vote_leaderboards(server, requester):
 
 	leaderboard_str = '\n \nLeaderboard for week of {}\n{} is in the lead!\nVotes close on {}```'.format(start, sorted_ch_lead[0][0].mention, date_to_string(string_to_date(start) + timedelta(7)))
 	for tup in sorted_ch_lead:
-		if tup[0].nick != None:
-			leaderboard_str += '{} ({}): {}'.format(tup[0].name, tup[0].nick, tup[1])
-		else:
-			leaderboard_str += '{}: {}'.format(tup[0].name, tup[1])
+		leaderboard_str += '{}: {}'.format(get_user_name(tup[0]), tup[1])
 		if requester.name == tup[0].name:
 			leaderboard_str +='    <-- It\'s you!\n'
 		else:
 			leaderboard_str +='\n'
 	leaderboard_str +='```'
 	return leaderboard_str
+
+def get_vote_history(server, requestor):
+	leaders = []
+
+	for date in votes:
+		if(len(votes[date]) > 0):
+			sorted_users = sorted(votes[date], key=lambda tup: tup[1], reverse=False)			
+			idx = 0
+			top_score = votes[date][sorted_users[idx]]
+			tup = [sorted_users[idx], votes[date][sorted_users[idx]]]
+			
+			while(tup[1] == top_score):
+				temp = server.get_member_named(str(tup[0]))
+				if(temp != None):
+					leaders.append([date, temp, tup[1]])
+				idx = idx + 1
+				if(len(sorted_users) > idx ):
+					tup = [sorted_users[idx], votes[date][sorted_users[idx]]]
+				else:
+					break
+
+	history_str = 'All-time voting history:```'
+	current_date = None
+
+	if(len(leaders) == 0):
+		history_str = "This server has no historical winners for voting..."
+	else:
+		leaders = sorted(leaders, key=lambda tup: datetime.datetime.strptime(tup[0], '%Y-%m-%d'))
+		for tup in leaders:
+			print("  {}".format(tup))
+			if(tup[0] != current_date):
+				current_date = tup[0]
+				history_str += '\n{} - {}: {}'.format(tup[0], get_user_name(tup[1]), tup[2])
+			else:
+				history_str += '\n              {}: {}'.format(get_user_name(tup[1]), tup[2])
+
+	return history_str + '```'
+
+def get_user_name(user):
+	if(user.nick != None):
+		return user.name + ' (' + user.nick + ')'
+	else:
+		return user.name
 
 def get_current_votes():
 	now = datetime.now().date()
