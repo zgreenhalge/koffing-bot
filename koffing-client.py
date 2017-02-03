@@ -182,6 +182,11 @@ def on_message(message):
 		yield from check_for_koffing(message)
 
 @asyncio.coroutine
+def timed_save():
+	save_all()
+	await asyncio.sleep(300)
+
+@asyncio.coroutine
 def shutdown_message():
 	save_all()
 	for server in client.servers:
@@ -409,9 +414,8 @@ def get_vote_history(server, requestor):
 	if(len(leaders) == 0):
 		history_str = "This server has no historical winners for voting..."
 	else:
-		leaders = sorted(leaders, key=lambda tup: datetime.datetime.strptime(tup[0], '%Y-%m-%d'))
+		leaders = sorted(leaders, key=lambda tup: datetime.strptime(tup[0], '%Y-%m-%d'))
 		for tup in leaders:
-			print("  {}".format(tup))
 			if(tup[0] != current_date):
 				current_date = tup[0]
 				history_str += '\n{} - {}: {}'.format(tup[0], get_user_name(tup[1]), tup[2])
@@ -534,6 +538,7 @@ def save_file(name, obj):
 	file.close()
 
 logger.info("Starting client with token %s" % TOKEN)
+client.loop.create_task(timed_save())
 client.run(TOKEN)
 for thread in child_threads:
 	thread.join()
