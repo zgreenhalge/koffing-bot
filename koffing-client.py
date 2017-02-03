@@ -67,17 +67,18 @@ def on_ready():
 			yield from deskronk_all(server)
 			for channel in server.channels:
 				if channel.type==discord.ChannelType.text and can_message(server, channel) and enabled['greeting']:
-					logger.info('Alerting %s::%s to bot presence', server.name, channel.name)
+					logger.info('Alerting %s::%s to bot presence', server.name, channel.id)
 					yield from client.send_message(channel, start_messages[randint(0, len(start_messages)-1)])
 				
 
 @client.event
 @asyncio.coroutine
 def on_message(message):
+	logger.info('Received message from "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.server.name, message.channel.id)
 	if not authorized(message.server, message.channel):
+		if message.author.id == client.user.id:
+			yield from respond(message, "{} remove me from your server.".format(message.author.mention))
 		return
-
-	logger.info('Received message from "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.server.name, message.channel.name)
 
 	global game_str
 	server = message.server
@@ -125,7 +126,7 @@ def on_message(message):
 			else:
 				if muted(server, channel):
 					response, emoji = generate_koffing(server)
-					logger.info('  Responding to "%s" (%s) in %s::%s', author.display_name, get_discriminating_name(author), server.name, channel.name)
+					logger.info('  Responding to "%s" (%s) in %s::%s', author.display_name, get_discriminating_name(author), server.name, channel.id)
 					yield from client.send_message(channel, response)
 				unmute(server, channel)
 
@@ -193,7 +194,7 @@ def shutdown_message():
 	for server in client.servers:
 		for channel in server.channels:
 			if channel.type==discord.ChannelType.text and can_message(server, channel) and enabled['greeting']:
-				logger.info('Alerting %s::%s to bot shutdown', server.name, channel.name)
+				logger.info('Alerting %s::%s to bot shutdown', server.name, channel.id)
 				yield from client.send_message(channel, 'Koffing-bot is going back to its pokeball~!')              
 
 @asyncio.coroutine
@@ -211,7 +212,7 @@ def check_for_koffing(message):
 		return #RETURN HERE TO STOP VOICE FROM HAPENING BEFORE IT WORKS
 		# need to figure out ffmpeg before this will work
 		if message.author.voice_channel != None and enabled["voice_response"]:
-			logger.debug('Attempting to play in voice channel %s', message.author.voice_channel.name)
+			logger.debug('Attempting to play in voice channel %s', message.author.voice_channel.id)
 			voice = voice_client_int(message.server)
 			if voice == None or voice.channel != message.author.voice_channel:
 				voice = yield from client.join_voice_channel(message.author.voice_channel)
@@ -241,7 +242,7 @@ def remove_admin(message):
 @asyncio.coroutine
 def respond(message, text):
 	if not muted(message.server, message.channel):
-		logger.info('  Responding to "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.server.name, message.channel.name)
+		logger.info('  Responding to "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.server.name, message.channel.id)
 		yield from client.send_message(message.channel, text)
 
 @asyncio.coroutine
@@ -254,7 +255,7 @@ def pin(message):
 	except NotFound:
 		logger.warn('Message or channel has been deleted, pin failed')
 	except Forbidden:
-		logger.warn('Koffing-bot does not have sufficient permissions to pin in %s::%s'.format(server.name, channel.name))
+		logger.warn('Koffing-bot does not have sufficient permissions to pin in %s::%s'.format(server.name, channel.id))
 	except (Error, Exception) as e:
 		logger.error('Could not pin message: {}'.format(e))
 
@@ -455,25 +456,25 @@ def get_discriminating_name(user):
 
 def authorized(server, channel):
 	if server.id in authorized_servers:
-		return channel.name in authorized_channels[server.id]
+		return channel.id in authorized_channels[server.id]
 	return False
 
 def muted(server, channel):
 	if server.id in muted_channels:
-		return channel.name in muted_channels[server.id]
+		return channel.id in muted_channels[server.id]
 	return False
 
 def mute(server, channel):
 	if server.id in muted_channels:
-		if channel.name not in muted_channels[server.id]:
-			muted_channels[server.id].append(channel.name)
+		if channel.id not in muted_channels[server.id]:
+			muted_channels[server.id].append(channel.id)
 	else:
-		muted_channels[server.id] = [channel.name]
+		muted_channels[server.id] = [channel.id]
 
 def unmute(server, channel):
 	if server.id in muted_channels:
-		if channel.name in muted_channels[server.id]:
-			muted_channels[server.id].remove(channel.name)
+		if channel.id in muted_channels[server.id]:
+			muted_channels[server.id].remove(channel.id)
 
 def get_date():
 	return datetime.fromtimestamp(time.time()).strftime('%m-%d-%Y')        
@@ -539,7 +540,5 @@ def save_file(name, obj):
 	file.close()
 
 logger.info("Starting client with token %s" % TOKEN)
-# client.loop.create_task(timed_save())
+client.loop.create_task(timed_save())
 client.run(TOKEN)
-for thread in child_threads:
-	thread.join()
