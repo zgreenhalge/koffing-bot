@@ -41,7 +41,8 @@ authorized_servers = settings['authorized_servers']
 authorized_channels = settings['authorized_channels']
 muted_channels = settings['muted_channels']
 admin_users = settings['admin_users']
-game_str = settings['game']
+game_str = settings['game'] 
+
 enabled = json.load(open(FEATURE_FILE_NAME))
 #--------------------------------------------------------------------
 votes = json.load(open(VOTE_FILE_NAME))
@@ -172,8 +173,15 @@ def on_message(message):
 				yield from place_vote(message)
 
 	elif content.startswith('/skronk'):
+		content = content.replace('/skronk', '', 1).lstrip().rstrip()
 		if not enabled['skronk']:
 			logger.info('  Skronking is not enabled -- not responding')
+		elif content.startswith('timeout'):
+			content = content.replace('timeout', '', 1).lstrip().rstrip()
+			if content.isdigit():
+				settings['skronk_timeout'] = content
+			else:
+				yield from respond(message, 'Please give a valid timeout in seconds')
 		else:
 			yield from skronk(message)
 
@@ -185,8 +193,8 @@ def on_message(message):
 @asyncio.coroutine
 def timed_save():
 	while not client.is_closed:
+		yield from asyncio.sleep(900)
 		save_all()
-		yield from asyncio.sleep(300)
 
 @asyncio.coroutine
 def shutdown_message():
@@ -300,37 +308,43 @@ def skronk(message):
 	name = get_discriminating_name(member)
 	
 	check = message.content.replace('/skronk', '', 1)
+	skronk = get_skronk_role(message.server)
+
 	if not check.lstrip().rstrip().startswith(member.mention):
-		yield from respond(message, "Blargh!")
+		yield from respond(message, 'Sk-RONK!!')
 		return
 
-	skronk = get_skronk_role(message.server)
 	if skronk == None:
 		yield from respond(message, "There's no skronk role here!")
 		return
 
+	# Is the author skronked already?
 	for role in message.author.roles:
 		if role == skronk:
-			yield from respond(message, "What is skronked may never skronk")
+			yield from respond(message, "What is skronked may never skronk.")
 			return
 
+	# Is the target already skronked?
 	for role in member.roles:
 		if role == skronk:
-			yield from respond(message, "{} was already skronked you skronk!".format(member.mention))
+			yield from respond(message, "{} was already skronked.. you skronk!".format(member.mention))
 			yield from respond(message, "/skronk {}".format(message.author.mention))
 			return
 
+	# Is the author trying to skronk himself?
 	if member == message.author:
-		yield from respond(message, "You can't skronk yourself {}... let me help you with that".format(member.mention))
+		yield from respond(message, "You can't skronk yourself {}... let me help you with that.".format(member.mention))
 		yield from respond(message, "/skronk {}".format(member.mention))
-	else:
-		yield from client.add_roles(member, skronk)
-		yield from respond(message, "{} got SKRONK'D!!!!".format(member.mention))
-		thread = TimeoutThread(TIMEOUT, remove_skronk, [member, message])
-		thread.start()
+		return
+	
+	# Okay, let's do the actual skronking
+	yield from client.add_roles(member, skronk)
+	yield from respond(message, "{} got SKRONK'D!!!!".format(member.mention))
+	yield from remove_skronk(member, message)
 
 @asyncio.coroutine
 def remove_skronk(member, message):
+	yield from asyncio.sleep(settings['skronk_timeout'])
 	logger.info("Attempting to deskronk {}".format(get_discriminating_name(member)))
 	if client.is_closed:
 		save_skronk(message.server, member)
@@ -339,7 +353,7 @@ def remove_skronk(member, message):
 	skronk = get_skronk_role(message.server)
 	if skronk != None and skronk in member.roles:
 		yield from client.remove_roles(member, skronk)
-		yield from respond(message, "You're out of the bin {}!".format(member.mention))
+		yield from respond(message, "You're out of skronk {}!".format(member.mention))
 
 @asyncio.coroutine
 def deskronk_all(server):
@@ -351,7 +365,7 @@ def deskronk_all(server):
 
 def get_skronk_role(server):
 	for role in server.roles:
-		if role.name == SKRONKED:
+		if role.name.lower() == SKRONKED.lower():
 			return role
 	logger.info("Did not find role named {}".format(SKRONKED))
 	return None
@@ -504,7 +518,7 @@ def save_all():
 	save_votes()
 
 def save_config():
-	contents = {'authorized_channels': authorized_channels, 'authorized_servers': authorized_servers, 'muted_channels': muted_channels, 'admin_users': admin_users, 'game': game_str}
+	contents = {'authorized_channels': authorized_channels, 'authorized_servers': authorized_servers, 'muted_channels': muted_channels, 'admin_users': admin_users, 'game': game_str, 'skronk_timeout': settings['skronk_timeout']}
 	logger.info('Writing settings to disk...')
 	save_file(CONFIG_FILE_NAME, contents)
 
