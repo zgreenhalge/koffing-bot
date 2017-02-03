@@ -183,8 +183,9 @@ def on_message(message):
 
 @asyncio.coroutine
 def timed_save():
-	save_all()
-	await asyncio.sleep(300)
+	while not client.is_closed:
+		save_all()
+		yield from asyncio.sleep(300)
 
 @asyncio.coroutine
 def shutdown_message():
