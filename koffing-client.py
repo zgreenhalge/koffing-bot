@@ -5,7 +5,6 @@ import time
 import logging
 import json
 import operator
-from TimeoutThread import TimeoutThread
 from random import randint
 from datetime import datetime
 from datetime import timedelta
@@ -176,10 +175,12 @@ def on_message(message):
 		content = content.replace('/skronk', '', 1).lstrip().rstrip()
 		if not enabled['skronk']:
 			logger.info('  Skronking is not enabled -- not responding')
-		elif content.startswith('timeout'):
+		elif content.startswith('timeout') and privileged(author):
 			content = content.replace('timeout', '', 1).lstrip().rstrip()
 			if content.isdigit():
+				old = settings['skronk_timeout']
 				settings['skronk_timeout'] = content
+				yield from respond(message, 'Skronk timeout changed from {}s to {}s'.format(old, content))
 			else:
 				yield from respond(message, 'Please give a valid timeout in seconds')
 		else:
