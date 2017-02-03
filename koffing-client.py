@@ -539,7 +539,7 @@ def save_file(name, obj):
 	file.close()
 
 logger.info("Starting client with token %s" % TOKEN)
-client.loop.create_task(timed_save())
+# client.loop.create_task(timed_save())
 client.run(TOKEN)
 for thread in child_threads:
 	thread.join()
