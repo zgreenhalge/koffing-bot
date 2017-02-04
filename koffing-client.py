@@ -93,18 +93,29 @@ def on_message(message):
 	content = (message.content + '.')[:-1].lower()
 	author = message.author
 
+	# Koffing admin and config options
+	# Feature list
+	# Help
+	# Admin management
+	# Mute channels
+	# Change game displayed
+	# Manually save state
+	# Shut down bot
 	if(content.startswith('/koffing ')):
 		content = content.replace('/koffing', '', 1).lstrip().rstrip()
 
+		# Help
 		if content.startswith('help'):
 			yield from respond(message, HELP)        
 
+		# Feature list
 		elif content.startswith('feature'):
 			if not enabled['features']:
 				yield from respond(message, 'The feature list is not enabled')
 			else:
 				yield from respond(message, FEATURE_LIST)
 
+		#Admin management
 		elif content.startswith('admin'):
 			content = content.replace('admin', '', 1).lstrip().rstrip()
 			if not privileged(author):
@@ -116,6 +127,7 @@ def on_message(message):
 			elif content.startswith('add'):
 				yield from add_admin(message)
 
+		# Mute control
 		elif content.startswith('mute'):
 			if not privileged(author):
 				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
@@ -125,6 +137,7 @@ def on_message(message):
 				yield from respond(message, "Koffing...")
 				mute(server, channel)
 
+		#Unmute control
 		elif content.startswith('unmute'):
 			if not privileged(author):
 				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
@@ -137,6 +150,7 @@ def on_message(message):
 					yield from client.send_message(channel, response)
 				unmute(server, channel)
 
+		# Game display
 		elif content.startswith('game') or content.startswith('play'):
 			if not privileged(author):
 				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
@@ -147,6 +161,11 @@ def on_message(message):
 				logger.info("  Setting bot to playing '{}'".format(game_str))
 				yield from client.change_presence(game=discord.Game(name=game_str))
 
+		# Manual save 
+		elif content.startswith('save'):
+			save_all()
+
+		# Kill bot
 		elif content.startswith('return'):
 			if not privileged(author):
 				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
@@ -154,17 +173,26 @@ def on_message(message):
 				yield from shutdown_message()
 				yield from client.logout()
 
+		# Unrecognized command
 		else:
 			yield from respond(message, "Skronk!")
 
+
+	# Actual commands and features:
+	# Auto pin messages starting with #SotD
+	# Voting (incl. leaderboards and history)
+	# Skronking and skronk management
+
+	#Sotd pinning
 	elif content.startswith('#sotd'):
 		if not enabled['sotd_pin']:
 			logger.info("  sotd_pin is not enabled")
+			# Don't alert channel to pin disabled
 			return
-		# Quiet skip this, since the user may not be actively asking for it
 		logger.info('  Pinning #SotD')
 		yield from pin(message)
 
+	# Voting 
 	elif content.startswith('/vote'):
 		if not enabled['voting']:
 			yield from respond(message, "Voting is not enabled")
@@ -178,6 +206,7 @@ def on_message(message):
 			else:
 				yield from place_vote(message)
 
+	#Skronking
 	elif content.startswith('/skronk'):
 		content = content.replace('/skronk', '', 1).lstrip().rstrip()
 		if not enabled['skronk']:
@@ -190,25 +219,32 @@ def on_message(message):
 				yield from respond(message, 'Skronk timeout changed from {}s to {}s'.format(old, content))
 			else:
 				yield from respond(message, 'Please give a valid timeout in seconds')
-		elif content.startswith('clear'):
-			yield from clear_skronk(message)
+		elif content.startswith('clear') and privileged(author):
+			content = content.replace('clear', '', 1).lstrip().rstrip()
+			if(content.startswith('force')):
+				yield from clear_skronks(message, True)
+			else:
+				yield from clear_skronks(message)
 		else:
 			yield from skronk(message)
 
+	# Message content scanning
 	else:
-		if message.author.id==client.user.id:
-			return
-		yield from check_for_koffing(message)
-		yield from check_for_thicc(message)
+		if not message.author.id==client.user.id:
+			yield from check_for_koffing(message)
+			# yield from check_for_thicc(message)
 
 @asyncio.coroutine
 def timed_save():
+	'''Loops until the bot shuts down, saving state (votes, settings, etc)'''
 	while not client.is_closed:
+		# Sleep first so we don't save as soon as we launch
 		yield from asyncio.sleep(SAVE_TIMEOUT)
 		save_all()
 
 @asyncio.coroutine
 def shutdown_message():
+	'''Saves state and then alerts all channels that it is shutting down'''
 	save_all()
 	for server in client.servers:
 		for channel in server.channels:
@@ -218,6 +254,7 @@ def shutdown_message():
 
 @asyncio.coroutine
 def check_for_koffing(message):
+	'''Checks a message content for the word 'koffing' and gets excited if its there'''
 	if 'koffing' in message.content.lower() or client.user.mentioned_in(message):
 
 		if can_message(message.server, message.channel) and enabled["text_response"]:
@@ -244,6 +281,7 @@ def check_for_thicc(message):
 
 @asyncio.coroutine
 def add_admin(message):
+	'''Add the mentioned members to the bot admin list'''
 	users = message.mentions 
 	channel = message.channel
 	for user in users:
@@ -254,6 +292,7 @@ def add_admin(message):
 
 @asyncio.coroutine
 def remove_admin(message):
+	'''Remove the mentioned members from the bot admin list'''
 	users = message.mentions
 	channel = message.channel
 	for user in users:
@@ -264,12 +303,14 @@ def remove_admin(message):
 
 @asyncio.coroutine
 def respond(message, text):
+	'''Respond to a message from a channel; puts line in logs'''
 	if not muted(message.server, message.channel):
 		logger.info('  Responding to "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.server.name, message.channel.id)
 		yield from client.send_message(message.channel, text)
 
 @asyncio.coroutine
 def pin(message):
+	'''Pins a message'''
 	try:
 		emoji = get_koffing_emoji(message.server)
 		if emoji != None:
@@ -284,23 +325,54 @@ def pin(message):
 
 @asyncio.coroutine
 def place_vote(message):
-	if len(message.mentions) == 0:
+	'''Adds a vote for @member or @role or @everyone'''
+	if len(message.mentions) == 0 and len(message.role_mentions) == 0 and not message.mention_everyone:
 		yield from respond(message, "You need to tag someone to vote for them!")
 		return
 
-	member = message.mentions[0]
-	name = get_discriminating_name(member)
-	
-	check = message.content.replace('/vote', '', 1).lstrip().rstrip()
-	if not check.lstrip().rstrip().startswith(member.mention):
-		logger.info("  Could not calculate vote: '{}', looking for {}".format(check, member.mention))
-		yield from respond(message, "Skronk!")
-		return
-	
-	if member.id == message.author.id:
-		yield from respond(message, "You can't vote for yourself {}....".format(member.mention))
+	vote_getters = []
+	group_message = ''
+	if len(message.mentions) > 0:
+		member = message.mentions[0]
+		name = get_discriminating_name(member)
+		vote_getters.append([name, member, True])
 
+		check = message.content.replace('/vote', '', 1).lstrip().rstrip()
+		if not check.lstrip().rstrip().startswith(member.mention):
+			logger.info("  Could not calculate vote: '{}', looking for {}".format(check, member.mention))
+			yield from respond(message, "Skronk!")
+			return
+	elif len(message.role_mentions) > 0:
+		role = message.role_mentions[0]
+
+		check = message.content.replace('/vote', '', 1).lstrip().rstrip()
+		if not check.lstrip().rstrip().startswith(role.mention):
+			logger.info("  Could not calculate vote: '{}', looking for {}".format(check, member.mention))
+			yield from respond(message, "Skronk!")
+			return
+
+		for member in members_of_role(message.server, role):
+			vote_getters.append([get_discriminating_name(member), member, False])
+
+		if len(vote_getters) > 0:
+			group_message = 'Ayyy congrats {}!! You get a vote!'.format(role.mention)
+		else:
+			group_message = '/skronk {} voting for an empty group'.format(message.author)
 	else:
+		for member in message.server.members:
+			vote_getters.append([get_discriminating_name(member), member, False])
+		group_message = 'Everyone gets a vote!!!!!'
+		
+	for named_member in vote_getters: 
+		name = named_member[0]
+		member = named_member[1]
+		announce = named_member[2]
+		
+		if member.id == message.author.id:
+			if announce:
+				yield from respond(message, "You can't vote for yourself {}....".format(member.mention))
+			continue
+		
 		cur_votes, start_time = get_current_votes()
 		if cur_votes == None:
 			cur_votes = {name: 1}
@@ -311,10 +383,17 @@ def place_vote(message):
 			else:
 				cur_votes[name] = 1
 			votes[start_time] = cur_votes
-		yield from respond(message, "{}, you just got a vote! Total votes: {}".format(member.mention, cur_votes[name]))
+
+		if announce:
+			yield from respond(message, "{}, you just got a vote! Total votes: {}".format(member.mention, cur_votes[name]))
+
+	if group_message != '':
+		yield from respond(message, group_message)
+		yield from respond(message, get_vote_leaderboards(message.server, message.author))
 
 @asyncio.coroutine
 def skronk(message):
+	'''Skronks @member'''
 	if len(message.mentions) == 0:
 		yield from respond(message, "You need to tag someone to vote for them!")
 		return
@@ -366,28 +445,40 @@ def skronk(message):
 	yield from remove_skronk(member, message)
 
 @asyncio.coroutine
-def remove_skronk(member, message):
-	yield from asyncio.sleep(settings['skronk_timeout'])
+def remove_skronk(member, message, silent=False, wait=True):
+	'''Removes @member form skronk'''
+	if wait:
+		yield from asyncio.sleep(settings['skronk_timeout'])
 	logger.info("Attempting to deskronk {}".format(get_discriminating_name(member)))
 
 	skronk = get_skronk_role(message.server)
 	if skronk != None and skronk in member.roles:
 		yield from client.remove_roles(member, skronk)
-		yield from respond(message, "You're out of skronk {}!".format(member.mention))
+		if not silent:
+			yield from respond(message, "You're out of skronk {}!".format(member.mention))
 
 @asyncio.coroutine
-def clear_skronk(message):
-	return
+def clear_skronks(message, force=False):
+	'''Clears all skronks. If this is not a forced clear, it will not happen if the author is skronked''' 
+	role = get_skronk_role(message.server)
+	if role in message.author.roles and not (force and privileged(message.author)):
+		yield from respond(message, "You can't get out of this that easily..")
+		return
 
-@asyncio.coroutine
-def deskronk_all(server):
-	skronks = json.load(open(SKRONK_FILE_PATH))
-	if server.id in skronks:
-		for name in skronks[server.id]:
-			user = server.get_member_named(name)
-			yield from remove_skronk(user, server)
+	skronked = members_of_role(message.server, role)
+	for member in skronked:
+		yield from remove_skronk(member, message, True, False)
+
+def members_of_role(server, role):
+	'''Returns an array of all members for the given role in the given server'''
+	ret = []
+	for member in server.members:
+		if role in member.roles:
+			ret.append(member)
+	return ret		
 
 def get_skronk_role(server):
+	'''Finds the role named SKRONK'D'''
 	for role in server.roles:
 		if role.name.lower() == SKRONKED.lower():
 			return role
@@ -395,6 +486,7 @@ def get_skronk_role(server):
 	return None
 
 def get_admin_list(server):
+	'''Gets a string containing the list of bot admins'''
 	admin_str = 'listens to the following trainers:\n'
 	for user in admin_users:
 		admin = server.get_member_named(user)
@@ -403,6 +495,7 @@ def get_admin_list(server):
 	return admin_str
 
 def get_vote_leaderboards(server, requester):
+	'''Returns a string of the current vote leaderboard'''
 	server_leaders = []
 	cur_votes, start = get_current_votes()
 	if(cur_votes == None):
@@ -429,6 +522,7 @@ def get_vote_leaderboards(server, requester):
 	return leaderboard_str
 
 def get_vote_history(server, requestor):
+	'''Returns a string of all the winners of each recorded voting session'''
 	leaders = []
 
 	for date in votes:
@@ -465,12 +559,14 @@ def get_vote_history(server, requestor):
 	return history_str + '```'
 
 def get_user_name(user):
+	'''Gets a pretty string of a user's name and nickname or just name, if there is no nickname'''
 	if(user.nick != None):
 		return user.name + ' (' + user.nick + ')'
 	else:
 		return user.name
 
 def get_current_votes():
+	'''Get the votes map for the current session'''
 	now = datetime.now().date()
 	for start in votes:
 		if(now - string_to_date(start) < timedelta(7)):
@@ -478,31 +574,39 @@ def get_current_votes():
 	return None, None
 
 def date_to_string(date):
+	'''Turn a date object into a string formatted the way we want (YYYY-mm-dd)'''
 	return date.strftime('%Y-%m-%d')
 
 def string_to_date(string):
+	'''Turn a string in YYYY-mm-dd into a date object'''
 	return datetime.strptime(string, '%Y-%m-%d').date()
 
 def can_message(server, channel):
+	'''True if the bot is authorized and unmuted for the channel, False otherwise'''
 	return authorized(server, channel) and not muted(server, channel)
 
 def privileged(user):
+	'''True if this user is a bot admin, False otherwise'''
 	return get_discriminating_name(user) in admin_users
 
 def get_discriminating_name(user):
+	'''Returns a string of the form <Username>#<USERDISCRIMINATOR>'''
 	return '{}#{}'.format(user.name, user.discriminator)
 
 def authorized(server, channel):
+	'''True if the bot is authorized in this channel'''
 	if server.id in authorized_servers:
 		return channel.id in authorized_channels[server.id]
 	return False
 
 def muted(server, channel):
+	'''True if the bot is muted in this channel'''
 	if server.id in muted_channels:
 		return channel.id in muted_channels[server.id]
 	return False
 
 def mute(server, channel):
+	'''Adds the channel to the muted list'''
 	if server.id in muted_channels:
 		if channel.id not in muted_channels[server.id]:
 			muted_channels[server.id].append(channel.id)
@@ -510,14 +614,17 @@ def mute(server, channel):
 		muted_channels[server.id] = [channel.id]
 
 def unmute(server, channel):
+	'''Removes the channel from the muted list'''
 	if server.id in muted_channels:
 		if channel.id in muted_channels[server.id]:
 			muted_channels[server.id].remove(channel.id)
 
 def get_date():
+	'''Returns a string of the current date in mm-dd-YYYY'''
 	return datetime.fromtimestamp(time.time()).strftime('%m-%d-%Y')        
 
 def generate_koffing(server):
+	'''Returns a string of a happy koffing'''
 	koffing_emoji = get_koffing_emoji(server)
 	koffing_str = None
 	response = None
@@ -531,47 +638,49 @@ def generate_koffing(server):
 	return response, koffing_emoji
 
 def get_koffing_emoji(server):
+	'''Returns the koffing emoji if this server has one, None otherwise'''
 	koffing_emoji = None
 	for emoji in server.emojis:
 		if emoji.name == 'koffing':
 			koffing_emoji = emoji
 	return koffing_emoji
 
-def save_all(silent):
+def save_all(silent=False):
+	'''Perform all saves'''
 	if not silent:
 		logger.info('Saving to disk...')
-	save_config(true)
-	save_feature_toggle(true)
-	save_votes(true)
-	save_skronk(true)
+	save_config(True)
+	save_feature_toggle(True)
+	save_votes(True)
+	save_skronk(True)
 
-def save_config(silent):
+def save_config(silent=False):
+	'''Save the configuration file'''
 	contents = {'authorized_channels': authorized_channels, 'authorized_servers': authorized_servers, 'muted_channels': muted_channels, 'admin_users': admin_users, 'game': game_str, 'skronk_timeout': settings['skronk_timeout']}
 	if not silent:
 		logger.info('Writing settings to disk...')
 	save_file(CONFIG_FILE_PATH, contents)
 
-def save_feature_toggle(silent):
+def save_feature_toggle(silent=False):
+	'''Save feature toggle map'''
 	if not silent:
 		logger.info("Writing features to disk...")
 	save_file(FEATURE_FILE_PATH, enabled)
 
-def save_votes(silent):
+def save_votes(silent=False):
+	'''Save vote map'''
 	if not silent:
 		logger.info('Writing votes to disk...')
 	save_file(VOTE_FILE_PATH, votes)
 
-def save_skronk(silent):
+def save_skronk(silent=False):
+	'''Save skronk list'''
 	if not silent:
 		logger.info('Saving skronk...')
 	save_file(SKRONK_FILE_PATH, skronks)
 
-def clear_skronks():
-	file = open(SKRONK_FILE_PATH, 'w')
-	file.write('')
-	file.close()
-
 def save_file(name, obj):
+	'''Save the given data to the given file'''
 	file = open(name, 'w')
 	json_str = json.dumps(obj, sort_keys=True, indent=4)
 	file.write(json_str)
