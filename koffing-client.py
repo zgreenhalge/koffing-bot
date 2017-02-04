@@ -5,6 +5,7 @@ import time
 import logging
 import json
 import operator
+import os
 from random import randint
 from datetime import datetime
 from datetime import timedelta
@@ -12,17 +13,21 @@ from datetime import timedelta
 if( len(sys.argv) != 2):
 	TOKEN = input('Please enter token: ')
 else:
-	TOKEN = sys.argv[1]
+	TOKEN = sys.argv[1].lstrip().rstrip()
 
 LOG_FORMAT = '[%(asctime)-15s] [%(levelname)s] - %(message)s'
 FEATURE_LIST = '```Current feature list (*=requires privilege):\n -responds in text channels!\n -responds in voice channels (PLANNED)\n -roll call (PLANNED)\n -song of the day pinning!\n -elo lookup [Overwatch] (PLANNED) \n -elo lookup [LoL] (PLANNED) \n -mute\n -vote!```'
 HELP = 'Koffing~~ I will respond any time my name is called!```\nCommands (*=requires privilege):\n /koffing help\n /koffing features\n*/koffing mute\n*/koffing unmute\n*/koffing admin [list] [remove (@user) [@user]] [add (@user) [@user]]\n*/koffing play [name]\n*/koffing return```'
 CONFIG_FILE_NAME = 'koffing.cfg'
+CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), CONFIG_FILE_NAME)
 FEATURE_FILE_NAME = "feature_toggle.cfg"
+FEATURE_FILE_PATH = os.path.join(os.path.dirname(__file__), FEATURE_FILE_NAME)
 VOTE_FILE_NAME = 'vote_count'
-SKRONK_FILE_NAME = 'deskronk_list'
+VOTE_FILE_PATH = os.path.join(os.path.dirname(__file__), VOTE_FILE_NAME)
+SKRONK_FILE_NAME = 'skronk'
+SKRONK_FILE_PATH = os.path.join(os.path.dirname(__file__), SKRONK_FILE_NAME)
 SKRONKED = "SKRONK'D"
-TIMEOUT = 60
+SAVE_TIMEOUT = 1800
 start_messages = ["Koffing-bot, go~!", "Get 'em Koffing-bot~!"]
 dev = True
 #--------------------------------------------------------------------
@@ -30,26 +35,26 @@ dev = True
 date = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d')
 logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
-fh = logging.FileHandler("LOG_" + date + ".txt")
+fh = logging.FileHandler(os.path.join(os.path.dirname(__file__), "LOG_" + date + ".txt"))
 fh.setLevel(logging.DEBUG)
 fh.setFormatter(logging.Formatter(LOG_FORMAT))
 logger.addHandler(fh)
 #--------------------------------------------------------------------
 #Control lists
-settings = json.load(open(CONFIG_FILE_NAME))
+settings = json.load(open(CONFIG_FILE_PATH))
 authorized_servers = settings['authorized_servers']
 authorized_channels = settings['authorized_channels']
 muted_channels = settings['muted_channels']
 admin_users = settings['admin_users']
 game_str = settings['game'] 
 
-enabled = json.load(open(FEATURE_FILE_NAME))
+enabled = json.load(open(FEATURE_FILE_PATH))
 #--------------------------------------------------------------------
-votes = json.load(open(VOTE_FILE_NAME))
+votes = json.load(open(VOTE_FILE_PATH))
+skronks = json.load(open(SKRONK_FILE_PATH))
 child_threads = []
 #--------------------------------------------------------------------
 client = discord.Client()
-
 
 
 @client.event
@@ -67,7 +72,6 @@ def on_ready():
 
 	for server in client.servers:
 		if server.id in authorized_servers:
-			yield from deskronk_all(server)
 			for channel in server.channels:
 				if channel.type==discord.ChannelType.text and can_message(server, channel) and enabled['greeting']:
 					logger.info('Alerting %s::%s to bot presence', server.name, channel.id)
@@ -186,6 +190,8 @@ def on_message(message):
 				yield from respond(message, 'Skronk timeout changed from {}s to {}s'.format(old, content))
 			else:
 				yield from respond(message, 'Please give a valid timeout in seconds')
+		elif content.startswith('clear'):
+			yield from clear_skronk(message)
 		else:
 			yield from skronk(message)
 
@@ -193,11 +199,12 @@ def on_message(message):
 		if message.author.id==client.user.id:
 			return
 		yield from check_for_koffing(message)
+		yield from check_for_thicc(message)
 
 @asyncio.coroutine
 def timed_save():
 	while not client.is_closed:
-		yield from asyncio.sleep(900)
+		yield from asyncio.sleep(SAVE_TIMEOUT)
 		save_all()
 
 @asyncio.coroutine
@@ -231,6 +238,9 @@ def check_for_koffing(message):
 				voice = yield from client.join_voice_channel(message.author.voice_channel)
 			player = voice.create_ffmpeg_player('koffing.mp3')
 			player.start()
+
+def check_for_thicc(message):
+	return
 
 @asyncio.coroutine
 def add_admin(message):
@@ -341,8 +351,16 @@ def skronk(message):
 		yield from respond(message, "You can't skronk yourself {}... let me help you with that.".format(member.mention))
 		yield from respond(message, "/skronk {}".format(member.mention))
 		return
+
+	# Are they trying to skronk the skronker???
+	for role in client.user.roles:
+		if role == skronk:
+			yield from respond(message, "You tryna skronk me???")
+			yield from respond(message, "/skronk {}".format(member.mention))
+			return
 	
 	# Okay, let's do the actual skronking
+	skronks[member.id] += 1
 	yield from client.add_roles(member, skronk)
 	yield from respond(message, "{} got SKRONK'D!!!!".format(member.mention))
 	yield from remove_skronk(member, message)
@@ -351,9 +369,6 @@ def skronk(message):
 def remove_skronk(member, message):
 	yield from asyncio.sleep(settings['skronk_timeout'])
 	logger.info("Attempting to deskronk {}".format(get_discriminating_name(member)))
-	if client.is_closed:
-		save_skronk(message.server, member)
-		return
 
 	skronk = get_skronk_role(message.server)
 	if skronk != None and skronk in member.roles:
@@ -361,8 +376,12 @@ def remove_skronk(member, message):
 		yield from respond(message, "You're out of skronk {}!".format(member.mention))
 
 @asyncio.coroutine
+def clear_skronk(message):
+	return
+
+@asyncio.coroutine
 def deskronk_all(server):
-	skronks = json.load(open(SKRONK_FILE_NAME))
+	skronks = json.load(open(SKRONK_FILE_PATH))
 	if server.id in skronks:
 		for name in skronks[server.id]:
 			user = server.get_member_named(name)
@@ -518,38 +537,37 @@ def get_koffing_emoji(server):
 			koffing_emoji = emoji
 	return koffing_emoji
 
-def save_all():
-	save_config()
-	save_feature_toggle()
-	save_votes()
+def save_all(silent):
+	if not silent:
+		logger.info('Saving to disk...')
+	save_config(true)
+	save_feature_toggle(true)
+	save_votes(true)
+	save_skronk(true)
 
-def save_config():
+def save_config(silent):
 	contents = {'authorized_channels': authorized_channels, 'authorized_servers': authorized_servers, 'muted_channels': muted_channels, 'admin_users': admin_users, 'game': game_str, 'skronk_timeout': settings['skronk_timeout']}
-	logger.info('Writing settings to disk...')
-	save_file(CONFIG_FILE_NAME, contents)
+	if not silent:
+		logger.info('Writing settings to disk...')
+	save_file(CONFIG_FILE_PATH, contents)
 
-def save_feature_toggle():
-	logger.info("Writing features to disk...")
-	save_file(FEATURE_FILE_NAME, enabled)
+def save_feature_toggle(silent):
+	if not silent:
+		logger.info("Writing features to disk...")
+	save_file(FEATURE_FILE_PATH, enabled)
 
-def save_votes():
-	logger.info('Writing votes to disk...')
-	save_file(VOTE_FILE_NAME, votes)
+def save_votes(silent):
+	if not silent:
+		logger.info('Writing votes to disk...')
+	save_file(VOTE_FILE_PATH, votes)
 
-def save_skronk(server, member):
-	saved_skronks = json.load(open(SKRONK_FILE_NAME, 'r'))
-	name = get_discriminating_name(member)
-	if server.id not in saved_skronks:
-		saved_skronks[server.id] = [name]
-	else:
-		while saved_skronks[server.id].count(name) > 0:
-			saved_skronks[server.id].remove(name)
-		saved_skronks[server.id].append(name)
-	logger.info('Saving skronk...')
-	save_file(SKRONK_FILE_NAME, saved_skronks)
+def save_skronk(silent):
+	if not silent:
+		logger.info('Saving skronk...')
+	save_file(SKRONK_FILE_PATH, skronks)
 
 def clear_skronks():
-	file = open(SKRONK_FILE_NAME, 'w')
+	file = open(SKRONK_FILE_PATH, 'w')
 	file.write('')
 	file.close()
 
