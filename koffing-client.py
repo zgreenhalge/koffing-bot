@@ -13,7 +13,7 @@ from datetime import timedelta
 # Dan (245295076865998869)
 
 LOG_FORMAT = '[%(asctime)-15s] [%(levelname)s] - %(message)s'
-TOKEN = 'MjU2MjIyMjU4NjQ3OTI0NzM3.CzUM4A.gSmNOYmh08W_EbF-d9LSPLXo2HY'
+TOKEN = sys.argv[1]
 FEATURE_LIST = '```Current feature list (*=requires privilege):\n -responds in text channels!\n -responds in voice channels (PLANNED)\n -roll call (PLANNED)\n -song of the day pinning!\n -elo lookup [Overwatch] (PLANNED) \n -elo lookup [LoL] (PLANNED) \n -mute\n -vote!```'
 HELP = 'Koffing~~ I will respond any time my name is called!```\nCommands (*=requires privilege):\n /koffing help\n /koffing features\n*/koffing mute\n*/koffing unmute\n*/koffing admin [list] [remove (@user) [@user]] [add (@user) [@user]]\n*/koffing play [name]\n*/koffing return```'
 CONFIG_FILE_NAME = 'koffing.cfg'
@@ -216,7 +216,8 @@ def check_for_koffing(message):
 			response, emoji = generate_koffing(message.server)
 			asyncio.sleep(randint(0,3))
 			yield from respond(message, response)
-			yield from client.add_reaction(message, emoji)
+			if(emoji != None and emoji != ""):
+				yield from client.add_reaction(message, emoji)
 
 		return #RETURN HERE TO STOP VOICE FROM HAPENING BEFORE IT WORKS
 		# need to figure out ffmpeg before this will work
@@ -497,13 +498,14 @@ def get_date():
 def generate_koffing(server):
 	koffing_emoji = get_koffing_emoji(server)
 	koffing_str = None
+	response = None
 
 	if koffing_emoji != None:
 		num_koffs = randint(2,5)
 		koffing_str = str(koffing_emoji)
 		response = num_koffs*koffing_str + ' ' + 'Koff' + randint(1,5)*'i' + 'ng' + randint(1,5)*'!' + num_koffs*koffing_str
 	else:
-		reponse = 'Koff' + randint(1,5)*'i' + 'ng' + randint(1,5)*'!'
+		response = 'Koff' + randint(1,5)*'i' + 'ng' + randint(1,5)*'!'
 	return response, koffing_emoji
 
 def get_koffing_emoji(server):
