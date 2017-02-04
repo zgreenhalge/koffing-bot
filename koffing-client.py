@@ -9,11 +9,12 @@ from random import randint
 from datetime import datetime
 from datetime import timedelta
 
-# Bot Testing (256173272637374464)
-# Dan (245295076865998869)
+if( len(sys.argv) != 2):
+	TOKEN = input('Please enter token: ')
+else:
+	TOKEN = sys.argv[1]
 
 LOG_FORMAT = '[%(asctime)-15s] [%(levelname)s] - %(message)s'
-TOKEN = sys.argv[1]
 FEATURE_LIST = '```Current feature list (*=requires privilege):\n -responds in text channels!\n -responds in voice channels (PLANNED)\n -roll call (PLANNED)\n -song of the day pinning!\n -elo lookup [Overwatch] (PLANNED) \n -elo lookup [LoL] (PLANNED) \n -mute\n -vote!```'
 HELP = 'Koffing~~ I will respond any time my name is called!```\nCommands (*=requires privilege):\n /koffing help\n /koffing features\n*/koffing mute\n*/koffing unmute\n*/koffing admin [list] [remove (@user) [@user]] [add (@user) [@user]]\n*/koffing play [name]\n*/koffing return```'
 CONFIG_FILE_NAME = 'koffing.cfg'
@@ -48,6 +49,8 @@ votes = json.load(open(VOTE_FILE_NAME))
 child_threads = []
 #--------------------------------------------------------------------
 client = discord.Client()
+
+
 
 @client.event
 @asyncio.coroutine
