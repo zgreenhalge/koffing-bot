@@ -164,12 +164,14 @@ def on_message(message):
 		# Manual save 
 		elif content.startswith('save'):
 			save_all()
+			yield from respond(message, "State saved.")
 
 		# Kill bot
 		elif content.startswith('return'):
 			if not privileged(author):
 				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
 			else:
+				save_all()
 				yield from shutdown_message()
 				yield from client.logout()
 
@@ -211,7 +213,10 @@ def on_message(message):
 		content = content.replace('/skronk', '', 1).lstrip().rstrip()
 		if not enabled['skronk']:
 			logger.info('  Skronking is not enabled -- not responding')
-		elif content.startswith('timeout') and privileged(author):
+		elif content.startswith('timeout'):
+			if not privileged(author):
+				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
+				return
 			content = content.replace('timeout', '', 1).lstrip().rstrip()
 			if content.isdigit():
 				old = settings['skronk_timeout']
@@ -247,7 +252,6 @@ def timed_save():
 @asyncio.coroutine
 def shutdown_message():
 	'''Saves state and then alerts all channels that it is shutting down'''
-	save_all()
 	for server in client.servers:
 		for channel in server.channels:
 			if channel.type==discord.ChannelType.text and can_message(server, channel) and enabled['greeting']:
@@ -341,7 +345,7 @@ def place_vote(message):
 		if member.id == message.author.id:
 			continue #cannot vote for yourself
 		
-		names += name + ", "	
+		names += member.mention + ", "	
 		cur_votes, start_time = get_current_votes()
 		if cur_votes == None:
 			cur_votes = {name: 1}
@@ -353,8 +357,9 @@ def place_vote(message):
 				cur_votes[name] = 1
 			votes[start_time] = cur_votes
 
-	names = names.rstrip(',')
+	names = names.rstrip(', ')
 	yield from respond(message, 'Congratulations {}! You got a vote!'. format(names))
+	yield from respond(message, get_vote_leaderboards(server, message.author, False))
 
 @asyncio.coroutine
 def skronk(message):
@@ -431,8 +436,12 @@ def remove_skronk(member, message, silent=False, wait=True):
 @asyncio.coroutine
 def clear_skronks(message, force=False):
 	'''Clears all skronks. If this is not a forced clear, it will not happen if the author is skronked''' 
+	if not privileged(message.author):
+		yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
+		return
+
 	role = get_skronk_role(message.server)
-	if role in message.author.roles and not (force and privileged(message.author)):
+	if role in message.author.roles and not force:
 		yield from respond(message, "You can't get out of this that easily..")
 		return
 
@@ -453,7 +462,7 @@ def get_mentioned(message):
 				mentioned.append([member, get_discriminating_name(member)])
 	
 	if message.mention_everyone:
-		for member in message.server.members:
+		for member in message.channel.members:
 			mentioned.append([member, get_discriminating_name(member)])
 
 	return mentioned
@@ -483,7 +492,7 @@ def get_admin_list(server):
 			admin_str += ' -' + admin.mention + '\n'
 	return admin_str
 
-def get_vote_leaderboards(server, requester):
+def get_vote_leaderboards(server, requester, call_out=True):
 	'''Returns a string of the current vote leaderboard'''
 	server_leaders = []
 	cur_votes, start = get_current_votes()
@@ -503,7 +512,7 @@ def get_vote_leaderboards(server, requester):
 	leaderboard_str = '\n \nLeaderboard for week of {}\n{} is in the lead!\nVotes close on {}```'.format(start, sorted_ch_lead[0][0].mention, date_to_string(string_to_date(start) + timedelta(7)))
 	for tup in sorted_ch_lead:
 		leaderboard_str += '{}: {}'.format(get_user_name(tup[0]), tup[1])
-		if requester.name == tup[0].name:
+		if requester.name == tup[0].name and call_out:
 			leaderboard_str +='    <-- It\'s you!\n'
 		else:
 			leaderboard_str +='\n'
@@ -513,7 +522,7 @@ def get_vote_leaderboards(server, requester):
 def get_vote_history(server, requestor):
 	'''Returns a string of all the winners of each recorded voting session'''
 	leaders = []
-
+	save_votes()
 	for date in votes:
 		if(len(votes[date]) > 0):
 			sorted_users = sorted(votes[date], key=lambda tup: tup[1], reverse=False)			
@@ -535,7 +544,7 @@ def get_vote_history(server, requestor):
 	current_date = None
 
 	if(len(leaders) == 0):
-		history_str = "This server has no historical winners for voting..."
+		history_str = "This server has no vote winners..."
 	else:
 		leaders = sorted(leaders, key=lambda tup: datetime.strptime(tup[0], '%Y-%m-%d'))
 		for tup in leaders:
