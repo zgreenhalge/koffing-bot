@@ -338,9 +338,8 @@ def place_vote(message):
 
 	vote_getters = get_mentioned(message)
 	names = ''
-	for named_member in vote_getters: 
-		name = named_member[1]
-		member = named_member[0]
+	for member in vote_getters: 
+		name = get_discriminating_name(member)
 		
 		if member.id == message.author.id:
 			continue #cannot vote for yourself
@@ -358,20 +357,19 @@ def place_vote(message):
 			votes[start_time] = cur_votes
 
 	names = names.rstrip(', ')
-	yield from respond(message, 'Congratulations {}! You got a vote!\n{}'.format(names, get_vote_leaderboards(server, message.author, False)))
+	yield from respond(message, 'Congratulations {}! You got a vote!{}'.format(names, get_vote_leaderboards(message.server, message.author, False)))
 
 @asyncio.coroutine
 def skronk(message):
 	'''Skronks @member'''
+	skronk = get_skronk_role(message.server)
+	if skronk == None:
+		yield from respond(message, "There's no skronk role here!")
+		return
+
 	skronked = get_mentioned(message)
 	if len(skronked) == 0:
 		yield from respond(message, "You need to tag someone to vote for them!")
-		return
-
-	skronk = get_skronk_role(message.server)
-
-	if skronk == None:
-		yield from respond(message, "There's no skronk role here!")
 		return
 
 	# Is the author skronked already?
@@ -382,46 +380,49 @@ def skronk(message):
 
 	no_skronk = []
 	skronk_em = False
-	for member, name in skronked:
+	for member in skronked:
 		# Is the author trying to skronk himself?
 		if member == message.author:
 			yield from respond(message, "You can't skronk yourself {}... let me help you with that.".format(message.author.mention))
 			skronk_em = True
-			no_skronk.append([member, name])
+			no_skronk.append(member)
+			continue
 		
 		# Is the target already skronked?
 		for role in member.roles:
 			if role == skronk:
 				yield from respond(message, "{} was already skronked.. you skronk!".format(member.mention))
 				skronk_em = True
-				no_skronk.append([member, name])
+				no_skronk.append(member)
 
 		# Are they trying to skronk the skronker???
-			if member.id == client.user.id:
-				yield from respond(message, "You tryna skronk me???")
-				skronk_em = True
-				no_skronk.append([member, name])
+		if member.id == client.user.id:
+			yield from respond(message, "You tryna skronk me???")
+			skronk_em = True
+			no_skronk.append(member)
+			continue
 	
 	#Clean up list of skronkees
-	for tup in no_skronk:
-		skronked.remove(tup)
+	for member in no_skronk:
+		if member in skronked:
+			skronked.remove(member)
 
-	# Okay, let's do the actual skronking
-	if member.id in skronks:
-		skronks[member.id] += 1
-	else:
-		skronks[member.id] = 1
 	if skronk_em:
 		yield from respond(message, "/skronk {}".format(message.author.mention))
 
-	for member, name in skronked:
+	# Okay, let's do the actual skronking
+	for member in skronked:
+		if member.id in skronks:
+			skronks[member.id] += 1
+		else:
+			skronks[member.id] = 1
 		yield from client.add_roles(member, skronk)
 		yield from respond(message, "{} got SKRONK'D!!!!".format(member.mention))
-		yield from remove_skronk(member, message)
+		client.loop.create_task(remove_skronk(member, message))
 
 @asyncio.coroutine
 def remove_skronk(member, message, silent=False, wait=True):
-	'''Removes @member form skronk'''
+	'''Removes @member from skronk'''
 	if wait:
 		yield from asyncio.sleep(settings['skronk_timeout'])
 	logger.info("Attempting to deskronk {}".format(get_discriminating_name(member)))
@@ -448,22 +449,25 @@ def clear_skronks(message, force=False):
 	for member in skronked:
 		yield from remove_skronk(member, message, True, False)
 
-def get_mentioned(message):
+def get_mentioned(message, everyone=True):
 	'''Gets everyone mentioned in a message. Aggregates members from all roles mentioned'''
 	mentioned = []
 	if len(message.mentions) > 0:
 		for member in message.mentions:
-			mentioned.append([member, get_discriminating_name(member)])
+			mentioned.append(member)
 	
 	if len(message.role_mentions) > 0:
 		for role in message.role_mentions:
 			for member in members_of_role(message.server, role):
-				mentioned.append([member, get_discriminating_name(member)])
+				mentioned.append(member)
 	
-	if message.mention_everyone:
-		for member in message.channel.members:
-			mentioned.append([member, get_discriminating_name(member)])
+	if message.mention_everyone and everyone:
+		for member in message.server.members:
+			if(member.permissions_in(message.channel).read_messages):
+				mentioned.append(member)
 
+	seen = set()
+	mentioned = [x for x in mentioned if x not in seen and not seen.add(x)]
 	return mentioned
 
 def members_of_role(server, role):
