@@ -27,7 +27,7 @@ VOTE_FILE_PATH = os.path.join(os.path.dirname(__file__), VOTE_FILE_NAME)
 SKRONK_FILE_NAME = 'skronk'
 SKRONK_FILE_PATH = os.path.join(os.path.dirname(__file__), SKRONK_FILE_NAME)
 SKRONKED = "SKRONK'D"
-SAVE_TIMEOUT = 1800
+SAVE_TIMEOUT = 300
 start_messages = ["Koffing-bot, go~!", "Get 'em Koffing-bot~!"]
 dev = True
 #--------------------------------------------------------------------
@@ -240,7 +240,9 @@ def timed_save():
 	while not client.is_closed:
 		# Sleep first so we don't save as soon as we launch
 		yield from asyncio.sleep(SAVE_TIMEOUT)
-		save_all()
+		if not client.is_closed: 
+			#could have closed between start of loop & sleep
+			save_all()
 
 @asyncio.coroutine
 def shutdown_message():
@@ -330,49 +332,16 @@ def place_vote(message):
 		yield from respond(message, "You need to tag someone to vote for them!")
 		return
 
-	vote_getters = []
-	group_message = ''
-	if len(message.mentions) > 0:
-		member = message.mentions[0]
-		name = get_discriminating_name(member)
-		vote_getters.append([name, member, True])
-
-		check = message.content.replace('/vote', '', 1).lstrip().rstrip()
-		if not check.lstrip().rstrip().startswith(member.mention):
-			logger.info("  Could not calculate vote: '{}', looking for {}".format(check, member.mention))
-			yield from respond(message, "Skronk!")
-			return
-	elif len(message.role_mentions) > 0:
-		role = message.role_mentions[0]
-
-		check = message.content.replace('/vote', '', 1).lstrip().rstrip()
-		if not check.lstrip().rstrip().startswith(role.mention):
-			logger.info("  Could not calculate vote: '{}', looking for {}".format(check, member.mention))
-			yield from respond(message, "Skronk!")
-			return
-
-		for member in members_of_role(message.server, role):
-			vote_getters.append([get_discriminating_name(member), member, False])
-
-		if len(vote_getters) > 0:
-			group_message = 'Ayyy congrats {}!! You get a vote!'.format(role.mention)
-		else:
-			group_message = '/skronk {} voting for an empty group'.format(message.author)
-	else:
-		for member in message.server.members:
-			vote_getters.append([get_discriminating_name(member), member, False])
-		group_message = 'Everyone gets a vote!!!!!'
-		
+	vote_getters = get_mentioned(message)
+	names = ''
 	for named_member in vote_getters: 
-		name = named_member[0]
-		member = named_member[1]
-		announce = named_member[2]
+		name = named_member[1]
+		member = named_member[0]
 		
 		if member.id == message.author.id:
-			if announce:
-				yield from respond(message, "You can't vote for yourself {}....".format(member.mention))
-			continue
+			continue #cannot vote for yourself
 		
+		names += name + ", "	
 		cur_votes, start_time = get_current_votes()
 		if cur_votes == None:
 			cur_votes = {name: 1}
@@ -384,29 +353,18 @@ def place_vote(message):
 				cur_votes[name] = 1
 			votes[start_time] = cur_votes
 
-		if announce:
-			yield from respond(message, "{}, you just got a vote! Total votes: {}".format(member.mention, cur_votes[name]))
-
-	if group_message != '':
-		yield from respond(message, group_message)
-		yield from respond(message, get_vote_leaderboards(message.server, message.author))
+	names = names.rstrip(',')
+	yield from respond(message, 'Congratulations {}! You got a vote!'. format(names))
 
 @asyncio.coroutine
 def skronk(message):
 	'''Skronks @member'''
-	if len(message.mentions) == 0:
+	skronked = get_mentioned(message)
+	if len(skronked) == 0:
 		yield from respond(message, "You need to tag someone to vote for them!")
 		return
 
-	member = message.mentions[0]
-	name = get_discriminating_name(member)
-	
-	check = message.content.replace('/skronk', '', 1)
 	skronk = get_skronk_role(message.server)
-
-	if not check.lstrip().rstrip().startswith(member.mention):
-		yield from respond(message, 'Sk-RONK!!')
-		return
 
 	if skronk == None:
 		yield from respond(message, "There's no skronk role here!")
@@ -418,31 +376,44 @@ def skronk(message):
 			yield from respond(message, "What is skronked may never skronk.")
 			return
 
-	# Is the target already skronked?
-	for role in member.roles:
-		if role == skronk:
-			yield from respond(message, "{} was already skronked.. you skronk!".format(member.mention))
-			yield from respond(message, "/skronk {}".format(message.author.mention))
-			return
+	no_skronk = []
+	skronk_em = False
+	for member, name in skronked:
+		# Is the author trying to skronk himself?
+		if member == message.author:
+			yield from respond(message, "You can't skronk yourself {}... let me help you with that.".format(message.author.mention))
+			skronk_em = True
+			no_skronk.append([member, name])
+		
+		# Is the target already skronked?
+		for role in member.roles:
+			if role == skronk:
+				yield from respond(message, "{} was already skronked.. you skronk!".format(member.mention))
+				skronk_em = True
+				no_skronk.append([member, name])
 
-	# Is the author trying to skronk himself?
-	if member == message.author:
-		yield from respond(message, "You can't skronk yourself {}... let me help you with that.".format(member.mention))
-		yield from respond(message, "/skronk {}".format(member.mention))
-		return
-
-	# Are they trying to skronk the skronker???
-	for role in client.user.roles:
-		if role == skronk:
-			yield from respond(message, "You tryna skronk me???")
-			yield from respond(message, "/skronk {}".format(member.mention))
-			return
+		# Are they trying to skronk the skronker???
+			if member.id == client.user.id:
+				yield from respond(message, "You tryna skronk me???")
+				skronk_em = True
+				no_skronk.append([member, name])
 	
+	#Clean up list of skronkees
+	for tup in no_skronk:
+		skronked.remove(tup)
+
 	# Okay, let's do the actual skronking
-	skronks[member.id] += 1
-	yield from client.add_roles(member, skronk)
-	yield from respond(message, "{} got SKRONK'D!!!!".format(member.mention))
-	yield from remove_skronk(member, message)
+	if member.id in skronks:
+		skronks[member.id] += 1
+	else:
+		skronks[member.id] = 1
+	if skronk_em:
+		yield from respond(message, "/skronk {}".format(message.author.mention))
+
+	for member, name in skronked:
+		yield from client.add_roles(member, skronk)
+		yield from respond(message, "{} got SKRONK'D!!!!".format(member.mention))
+		yield from remove_skronk(member, message)
 
 @asyncio.coroutine
 def remove_skronk(member, message, silent=False, wait=True):
@@ -468,6 +439,24 @@ def clear_skronks(message, force=False):
 	skronked = members_of_role(message.server, role)
 	for member in skronked:
 		yield from remove_skronk(member, message, True, False)
+
+def get_mentioned(message):
+	'''Gets everyone mentioned in a message. Aggregates members from all roles mentioned'''
+	mentioned = []
+	if len(message.mentions) > 0:
+		for member in message.mentions:
+			mentioned.append([member, get_discriminating_name(member)])
+	
+	if len(message.role_mentions) > 0:
+		for role in message.role_mentions:
+			for member in members_of_role(message.server, role):
+				mentioned.append([member, get_discriminating_name(member)])
+	
+	if message.mention_everyone:
+		for member in message.server.members:
+			mentioned.append([member, get_discriminating_name(member)])
+
+	return mentioned
 
 def members_of_role(server, role):
 	'''Returns an array of all members for the given role in the given server'''
