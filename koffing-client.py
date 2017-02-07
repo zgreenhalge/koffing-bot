@@ -358,8 +358,7 @@ def place_vote(message):
 			votes[start_time] = cur_votes
 
 	names = names.rstrip(', ')
-	yield from respond(message, 'Congratulations {}! You got a vote!'. format(names))
-	yield from respond(message, get_vote_leaderboards(server, message.author, False))
+	yield from respond(message, 'Congratulations {}! You got a vote!\n{}'.format(names, get_vote_leaderboards(server, message.author, False)))
 
 @asyncio.coroutine
 def skronk(message):
