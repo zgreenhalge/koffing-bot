@@ -16,8 +16,7 @@ else:
 	TOKEN = sys.argv[1].lstrip().rstrip()
 
 LOG_FORMAT = '[%(asctime)-15s] [%(levelname)s] - %(message)s'
-FEATURE_LIST = '```Current feature list (*=requires privilege):\n -responds in text channels!\n -responds in voice channels (PLANNED)\n -roll call (PLANNED)\n -song of the day pinning!\n -elo lookup [Overwatch] (PLANNED) \n -elo lookup [LoL] (PLANNED) \n -mute\n -vote!```'
-HELP = 'Koffing~~ I will respond any time my name is called!```\nCommands (*=requires privilege):\n /koffing help\n /koffing features\n*/koffing mute\n*/koffing unmute\n*/koffing admin [list] [remove (@user) [@user]] [add (@user) [@user]]\n*/koffing play [name]\n*/koffing return```'
+HELP = 'Koffing~~ I will listen to any trainer with enough badges!```\nCommands (*=requires privilege):\n /koffing help\n*/koffing mute\n*/koffing unmute\n*/koffing admin [list] [remove (@user) [@user]] [add (@user) [@user]]\n*/koffing play [name]\n*/koffing return```'
 CONFIG_FILE_NAME = 'koffing.cfg'
 CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), CONFIG_FILE_NAME)
 FEATURE_FILE_NAME = "feature_toggle.cfg"
@@ -41,18 +40,17 @@ fh.setFormatter(logging.Formatter(LOG_FORMAT))
 logger.addHandler(fh)
 #--------------------------------------------------------------------
 #Control lists
-settings = json.load(open(CONFIG_FILE_PATH))
+settings = json.load(open_file(CONFIG_FILE_PATH, False))
 authorized_servers = settings['authorized_servers']
 authorized_channels = settings['authorized_channels']
 muted_channels = settings['muted_channels']
 admin_users = settings['admin_users']
 game_str = settings['game'] 
 
-enabled = json.load(open(FEATURE_FILE_PATH))
+enabled = json.load(open_file(FEATURE_FILE_PATH, False))
 #--------------------------------------------------------------------
-votes = json.load(open(VOTE_FILE_PATH))
-skronks = json.load(open(SKRONK_FILE_PATH))
-child_threads = []
+votes = json.load(open_file(VOTE_FILE_PATH, False))
+skronks = json.load(open_file(SKRONK_FILE_PATH, False))
 #--------------------------------------------------------------------
 client = discord.Client()
 
@@ -60,6 +58,7 @@ client = discord.Client()
 @client.event
 @asyncio.coroutine
 def on_ready():
+	'''Called when the client has succesfully started up & logged in with our token'''
 	
 	logger.info('\n-----------------\nLogged in as %s - %s\n-----------------', client.user.name, client.user.id)    
 	if dev==True:
@@ -81,6 +80,7 @@ def on_ready():
 @client.event
 @asyncio.coroutine
 def on_message(message):
+	'''Fires whenthe client receieves a new message. Main starting point for message & command processing'''
 	logger.info('Received message from "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.server.name, message.channel.id)
 	if not authorized(message.server, message.channel):
 		if message.author.id == client.user.id:
@@ -94,7 +94,6 @@ def on_message(message):
 	author = message.author
 
 	# Koffing admin and config options
-	# Feature list
 	# Help
 	# Admin management
 	# Mute channels
@@ -108,13 +107,6 @@ def on_message(message):
 		if content.startswith('help'):
 			yield from respond(message, HELP)        
 
-		# Feature list
-		elif content.startswith('feature'):
-			if not enabled['features']:
-				yield from respond(message, 'The feature list is not enabled')
-			else:
-				yield from respond(message, FEATURE_LIST)
-
 		#Admin management
 		elif content.startswith('admin'):
 			content = content.replace('admin', '', 1).lstrip().rstrip()
@@ -127,7 +119,7 @@ def on_message(message):
 			elif content.startswith('add'):
 				yield from add_admin(message)
 
-		# Mute control
+		# Mute control (channel based). Stops koffing from listening and responding to channels on the list
 		elif content.startswith('mute'):
 			if not privileged(author):
 				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
@@ -137,7 +129,7 @@ def on_message(message):
 				yield from respond(message, "Koffing...")
 				mute(server, channel)
 
-		#Unmute control
+		#Unmute control. Gets koffing to listen to a channel again
 		elif content.startswith('unmute'):
 			if not privileged(author):
 				yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
@@ -272,7 +264,7 @@ def check_for_koffing(message):
 			if(emoji != None and emoji != ""):
 				yield from client.add_reaction(message, emoji)
 
-		return #RETURN HERE TO STOP VOICE FROM HAPENING BEFORE IT WORKS
+		return #RETURN HERE TO STOP VOICE FROM HAPPENING BEFORE IT WORKS
 		# need to figure out ffmpeg before this will work
 		if message.author.voice_channel != None and enabled["voice_response"]:
 			logger.debug('Attempting to play in voice channel %s', message.author.voice_channel.id)
@@ -680,12 +672,25 @@ def save_skronk(silent=False):
 		logger.info('Saving skronk...')
 	save_file(SKRONK_FILE_PATH, skronks)
 
-def save_file(name, obj):
+def save_file(path, obj):
 	'''Save the given data to the given file'''
-	file = open(name, 'w')
+	file = open(path, 'w')
 	json_str = json.dumps(obj, sort_keys=True, indent=4)
 	file.write(json_str)
 	file.close()
+
+def open_file(path, array):
+	content = ''
+	if os.path.isfile(path):
+		content = open(path)
+	elif os.path.exists(path):
+		raise FileNotFoundError('{} does not exist'.format(path))
+	else:
+		if array:
+			content = []
+		else:
+			content = {}
+	return content
 
 logger.info("Starting client with token %s" % TOKEN)
 client.loop.create_task(timed_save())
