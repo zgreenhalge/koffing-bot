@@ -15,6 +15,19 @@ if( len(sys.argv) != 2):
 else:
 	TOKEN = sys.argv[1].lstrip().rstrip()
 
+def open_file(path, array):
+	content = ''
+	if os.path.isfile(path):
+		content = open(path)
+	elif os.path.exists(path):
+		raise FileNotFoundError('{} does not exist'.format(path))
+	else:
+		if array:
+			content = []
+		else:
+			content = {}
+	return content
+
 LOG_FORMAT = '[%(asctime)-15s] [%(levelname)s] - %(message)s'
 HELP = 'Koffing~~ I will listen to any trainer with enough badges!```\nCommands (*=requires privilege):\n /koffing help\n*/koffing mute\n*/koffing unmute\n*/koffing admin [list] [remove (@user) [@user]] [add (@user) [@user]]\n*/koffing play [name]\n*/koffing return```'
 CONFIG_FILE_NAME = 'koffing.cfg'
@@ -46,14 +59,12 @@ authorized_channels = settings['authorized_channels']
 muted_channels = settings['muted_channels']
 admin_users = settings['admin_users']
 game_str = settings['game'] 
-
 enabled = json.load(open_file(FEATURE_FILE_PATH, False))
 #--------------------------------------------------------------------
 votes = json.load(open_file(VOTE_FILE_PATH, False))
 skronks = json.load(open_file(SKRONK_FILE_PATH, False))
 #--------------------------------------------------------------------
 client = discord.Client()
-
 
 @client.event
 @asyncio.coroutine
@@ -76,7 +87,6 @@ def on_ready():
 					logger.info('Alerting %s::%s to bot presence', server.name, channel.id)
 					yield from client.send_message(channel, start_messages[randint(0, len(start_messages)-1)])
 				
-
 @client.event
 @asyncio.coroutine
 def on_message(message):
@@ -259,7 +269,7 @@ def check_for_koffing(message):
 			# Quiet skip this, since that's the point of disabled text response
 			yield from client.send_typing(message.channel)
 			response, emoji = generate_koffing(message.server)
-			asyncio.sleep(randint(0,3))
+			asyncio.sleep(randint(0,2))
 			yield from respond(message, response)
 			if(emoji != None and emoji != ""):
 				yield from client.add_reaction(message, emoji)
