@@ -1,6 +1,6 @@
 A simple discord bot created using [***discord.py***](https://github.com/Rapptz/discord.py).
 
-Abilities:
+**Abilities:**
   - Responds emphatically to `koffing` in any channel
   - Auto pin any message starting with "#SotD"
 
