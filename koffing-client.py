@@ -335,7 +335,7 @@ def pin(message):
 def place_vote(message):
 	'''Adds a vote for @member or @role or @everyone'''
 	if len(message.mentions) == 0 and len(message.role_mentions) == 0 and not message.mention_everyone:
-		yield from respond(message, "You need to tag someone to vote for them!")
+		yield from respond(message, "Tag someone to vote for them!")
 		return
 
 	vote_getters = get_mentioned(message)
@@ -359,19 +359,22 @@ def place_vote(message):
 			votes[start_time] = cur_votes
 
 	names = names.rstrip(', ')
-	yield from respond(message, 'Congratulations {}! You got a vote!{}'.format(names, get_vote_leaderboards(message.server, message.author, False)))
+	if len(vote_getters) > 0:
+		yield from respond(message, 'Congratulations {}! You got a vote!{}'.format(names, get_vote_leaderboards(message.server, message.author, False)))
+	else:
+		yield from respond(message, "You didn't tag anyone you can vote for {}".format(message.author.mention))
 
 @asyncio.coroutine
 def skronk(message):
 	'''Skronks @member'''
 	skronk = get_skronk_role(message.server)
 	if skronk == None:
-		yield from respond(message, "There's no skronk role here!")
+		yield from respond(message, "There will be no skronking here.")
 		return
 
 	skronked = get_mentioned(message)
 	if len(skronked) == 0:
-		yield from respond(message, "You need to tag someone to vote for them!")
+		yield from respond(message, "Tag someone to skronk them!")
 		return
 
 	# Is the author skronked already?
@@ -399,7 +402,7 @@ def skronk(message):
 
 		# Are they trying to skronk the skronker???
 		if member.id == client.user.id:
-			yield from respond(message, "You tryna skronk me???")
+			yield from respond(message, "You tryna skronk me??")
 			skronk_em = True
 			no_skronk.append(member)
 			continue
