@@ -63,7 +63,9 @@ enabled = json.load(open_file(FEATURE_FILE_PATH, False))
 #--------------------------------------------------------------------
 votes = json.load(open_file(VOTE_FILE_PATH, False))
 skronks = json.load(open_file(SKRONK_FILE_PATH, False))
-skronk_times = skronks['time']
+skronk_times = {}
+if 'time' in skronks:
+	skronk_times = skronks['time']
 #--------------------------------------------------------------------
 client = discord.Client()
 
@@ -339,7 +341,7 @@ def place_vote(message):
 		yield from respond(message, "Tag someone to vote for them!")
 		return
 
-	if is_skronked(message.author, message.server):
+	if is_skronked(message.author, message.server, get_skronk_role(message.server)):
 		yield from respond(message, "One skronked never votes {}".format(message.author.mention))
 		return
 
@@ -372,6 +374,8 @@ def place_vote(message):
 @asyncio.coroutine
 def skronk(message):
 	'''Skronks @member'''
+
+	global skronk_times
 	skronk = get_skronk_role(message.server)
 	if skronk == None:
 		yield from respond(message, "There will be no skronking here.")
@@ -411,42 +415,35 @@ def skronk(message):
 
 	if skronk_em:
 		yield from respond(message, "/skronk {}".format(message.author.mention))
-
-	if skronk_times == None:
-		skronk_times = {}
-		
 	# Okay, let's do the actual skronking
 	for member in skronked:
-		message = ""
 		if member.id in skronks:
 			skronks[member.id] += 1
 		else:
 			skronks[member.id] = 1
 		if member.id in skronk_times:
-			skronk_times[member.id] += skronk_timeout
+			skronk_times[member.id] += settings['skronk_timeout']
 		else:
-			skronk_times = skronk_timeout
+			skronk_times[member.id] = settings['skronk_timeout']
 		skronks['time'] = skronk_times
 		yield from client.add_roles(member, skronk)
-		yield from respond(message, "{} got SKRONK'D!!!! ({}m left)".format(member.mention, str(skronk_times[member.id]/60)))
+		yield from respond(message, "{} got SKRONK'D!!!! ({}m left)".format(member.mention, str(int(skronk_times[member.id]/60))))
 		client.loop.create_task(remove_skronk(member, message))
 
 @asyncio.coroutine
-def remove_skronk(member, message, silent=False, wait=True):
+def remove_skronk(member, message, silent=False, wait=True, absolute=False):
 	'''Removes @member from skronk'''
+	global skronk_times
 	if wait:
 		yield from asyncio.sleep(settings['skronk_timeout'])
 	logger.info("Attempting to deskronk {}".format(get_discriminating_name(member)))
 
-	if skronk_times == None:
-		skronk_times = {}
-
 	if member.id in skronk_times:
-		skronk_times[member.id] = skronk_times[member.id] - skronk_timeout
-		if skronk_times[member.id] == 0:
-			skronk_times.remove(member.id)
+		skronk_times[member.id] = skronk_times[member.id] - settings['skronk_timeout']
+		if skronk_times[member.id] == 0 or absolute:
+			del skronk_times[member.id]
 		else:
-			yield from("Only {}m of shame left {}.".format(skronk_times[member.id], member.mention))
+			yield from respond("Only {}m of shame left {}.".format(skronk_times[member.id], member.mention))
 			return
 		skronks['time'] = skronk_times
 
@@ -469,8 +466,14 @@ def clear_skronks(message, force=False):
 		return
 
 	skronked = members_of_role(message.server, role)
+	names= ""
 	for member in skronked:
-		yield from remove_skronk(member, message, True, False)
+		yield from remove_skronk(member, message, True, False, True)
+		names += member.mention + ", "
+	names = names.rstrip(', ')
+
+	yield from respond(message, "Hey {}. {} just saved your skronking lil' ass.".format(names, message.author.mention))
+
 
 def get_mentioned(message, everyone=True):
 	'''Gets everyone mentioned in a message. Aggregates members from all roles mentioned'''
@@ -493,14 +496,6 @@ def get_mentioned(message, everyone=True):
 	mentioned = [x for x in mentioned if x not in seen and not seen.add(x)]
 	return mentioned
 
-def is_skronked(member, server, skronk=get_skronk_role(server)):
-	if skronk = None:
-		return False
-
-	for role in member.roles:
-		if role == skronk:
-			return True
-
 def members_of_role(server, role):
 	'''Returns an array of all members for the given role in the given server'''
 	ret = []
@@ -516,6 +511,14 @@ def get_skronk_role(server):
 			return role
 	logger.info("Did not find role named {}".format(SKRONKED))
 	return None
+
+def is_skronked(member, server, skronk):
+	if skronk == None:
+		return False
+
+	for role in member.roles:
+		if role == skronk:
+			return True
 
 def get_admin_list(server):
 	'''Gets a string containing the list of bot admins'''
