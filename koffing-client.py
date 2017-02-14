@@ -63,6 +63,7 @@ enabled = json.load(open_file(FEATURE_FILE_PATH, False))
 #--------------------------------------------------------------------
 votes = json.load(open_file(VOTE_FILE_PATH, False))
 skronks = json.load(open_file(SKRONK_FILE_PATH, False))
+skronk_times = skronks['time']
 #--------------------------------------------------------------------
 client = discord.Client()
 
@@ -338,6 +339,10 @@ def place_vote(message):
 		yield from respond(message, "You need to tag someone to vote for them!")
 		return
 
+	if is_skronked(message.author, message.server):
+		yield from respond(message, "One skronked never votes {}".format(message.author.mention))
+		return
+
 	vote_getters = get_mentioned(message)
 	names = ''
 	for member in vote_getters: 
@@ -375,10 +380,9 @@ def skronk(message):
 		return
 
 	# Is the author skronked already?
-	for role in message.author.roles:
-		if role == skronk:
-			yield from respond(message, "What is skronked may never skronk.")
-			return
+	if is_skronked(message.author, message.server, skronk):
+		yield from respond(message, "What is skronked may never skronk.")
+		return
 
 	no_skronk = []
 	skronk_em = False
@@ -389,13 +393,6 @@ def skronk(message):
 			skronk_em = True
 			no_skronk.append(member)
 			continue
-		
-		# Is the target already skronked?
-		for role in member.roles:
-			if role == skronk:
-				yield from respond(message, "{} was already skronked.. you skronk!".format(member.mention))
-				skronk_em = True
-				no_skronk.append(member)
 
 		# Are they trying to skronk the skronker???
 		if member.id == client.user.id:
@@ -412,14 +409,23 @@ def skronk(message):
 	if skronk_em:
 		yield from respond(message, "/skronk {}".format(message.author.mention))
 
+	if skronk_times == None:
+		skronk_times = {}
+		
 	# Okay, let's do the actual skronking
 	for member in skronked:
+		message = ""
 		if member.id in skronks:
 			skronks[member.id] += 1
 		else:
 			skronks[member.id] = 1
+		if member.id in skronk_times:
+			skronk_times[member.id] += skronk_timeout
+		else:
+			skronk_times = skronk_timeout
+		skronks['time'] = skronk_times
 		yield from client.add_roles(member, skronk)
-		yield from respond(message, "{} got SKRONK'D!!!!".format(member.mention))
+		yield from respond(message, "{} got SKRONK'D!!!! ({}m left)".format(member.mention, str(skronk_times[member.id]/60)))
 		client.loop.create_task(remove_skronk(member, message))
 
 @asyncio.coroutine
@@ -428,6 +434,18 @@ def remove_skronk(member, message, silent=False, wait=True):
 	if wait:
 		yield from asyncio.sleep(settings['skronk_timeout'])
 	logger.info("Attempting to deskronk {}".format(get_discriminating_name(member)))
+
+	if skronk_times == None:
+		skronk_times = {}
+
+	if member.id in skronk_times:
+		skronk_times[member.id] = skronk_times[member.id] - skronk_timeout
+		if skronk_times[member.id] == 0:
+			skronk_times.remove(member.id)
+		else:
+			yield from("Only {}m of shame left {}.".format(skronk_times[member.id], member.mention))
+			return
+		skronks['time'] = skronk_times
 
 	skronk = get_skronk_role(message.server)
 	if skronk != None and skronk in member.roles:
@@ -471,6 +489,14 @@ def get_mentioned(message, everyone=True):
 	seen = set()
 	mentioned = [x for x in mentioned if x not in seen and not seen.add(x)]
 	return mentioned
+
+def is_skronked(member, server, skronk=get_skronk_role(server)):
+	if skronk = None:
+		return False
+
+	for role in member.roles:
+		if role == skronk:
+			return True
 
 def members_of_role(server, role):
 	'''Returns an array of all members for the given role in the given server'''
@@ -527,23 +553,26 @@ def get_vote_leaderboards(server, requester, call_out=True):
 def get_vote_history(server, requestor):
 	'''Returns a string of all the winners of each recorded voting session'''
 	leaders = []
-	save_votes()
+	cur_votes, start = get_current_votes()
 	for date in votes:
-		if(len(votes[date]) > 0):
-			sorted_users = sorted(votes[date], key=lambda tup: tup[1], reverse=False)			
-			idx = 0
-			top_score = votes[date][sorted_users[idx]]
-			tup = [sorted_users[idx], votes[date][sorted_users[idx]]]
-			
-			while(tup[1] == top_score):
-				temp = server.get_member_named(str(tup[0]))
-				if(temp != None):
-					leaders.append([date, temp, tup[1]])
-				idx = idx + 1
-				if(len(sorted_users) > idx ):
-					tup = [sorted_users[idx], votes[date][sorted_users[idx]]]
-				else:
-					break
+		if date < start and date > start - 7:
+			if(len(votes[date]) > 0):
+				sorted_users = sorted(votes[date], key=lambda tup: tup[1], reverse=False)			
+				idx = 0
+				top_score = votes[date][sorted_users[idx]]
+				username = sorted_users[idx]
+				score = votes[date][username]
+				
+				while(score == top_score):
+					member = server.get_member_named(username)
+					if(member != None):
+						leaders.append([date, member, score])
+					idx = idx + 1
+					if(len(sorted_users) > idx ):
+						username = sorted_users[idx]
+						score = votes[date][username]
+					else:
+						score = -1
 
 	history_str = 'All-time voting history:```'
 	current_date = None
@@ -557,9 +586,10 @@ def get_vote_history(server, requestor):
 				current_date = tup[0]
 				history_str += '\n{} - {}: {}'.format(tup[0], get_user_name(tup[1]), tup[2])
 			else:
-				history_str += '\n              {}: {}'.format(get_user_name(tup[1]), tup[2])
+				history_str += '\n             {}: {}'.format(get_user_name(tup[1]), tup[2])
+		history_str += '```'
 
-	return history_str + '```'
+	return history_str
 
 def get_user_name(user):
 	'''Gets a pretty string of a user's name and nickname or just name, if there is no nickname'''
