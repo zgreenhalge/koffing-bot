@@ -341,10 +341,6 @@ def place_vote(message):
 		yield from respond(message, "Tag someone to vote for them!")
 		return
 
-	if is_skronked(message.author, message.server, get_skronk_role(message.server)):
-		yield from respond(message, "One skronked never votes {}".format(message.author.mention))
-		return
-
 	vote_getters = get_mentioned(message)
 	names = ''
 	for member in vote_getters: 
