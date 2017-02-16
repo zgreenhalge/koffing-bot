@@ -561,7 +561,7 @@ def get_vote_history(server, requestor):
 	leaders = []
 	cur_votes, start = get_current_votes()
 	for date in votes:
-		if date < start and date > start - 7:
+		if string_to_date(date) < string_to_date(start) and string_to_date(date) - string_to_date(start) > timedelta(-8):
 			if(len(votes[date]) > 0):
 				sorted_users = sorted(votes[date], key=lambda tup: tup[1], reverse=False)			
 				idx = 0
