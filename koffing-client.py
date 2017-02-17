@@ -423,7 +423,7 @@ def skronk(message):
 			skronk_times[member.id] = settings['skronk_timeout']
 		skronks['time'] = skronk_times
 		yield from client.add_roles(member, skronk)
-		yield from respond(message, "{} got SKRONK'D!!!! ({}m left)".format(member.mention, str(int(skronk_times[member.id]/60))))
+		yield from respond(message, "{} got SKRONK'D!!!! ({}m left)".format(member.mention, str(int(int(skronk_times[member.id])/60))))
 		client.loop.create_task(remove_skronk(member, message))
 
 @asyncio.coroutine
