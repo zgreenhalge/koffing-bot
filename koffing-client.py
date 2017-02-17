@@ -418,9 +418,9 @@ def skronk(message):
 		else:
 			skronks[member.id] = 1
 		if member.id in skronk_times:
-			skronk_times[member.id] += settings['skronk_timeout']
+			skronk_times[member.id] = int(skronk_times[member.id]) + int(settings['skronk_timeout'])
 		else:
-			skronk_times[member.id] = settings['skronk_timeout']
+			skronk_times[member.id] = int(settings['skronk_timeout'])
 		skronks['time'] = skronk_times
 		yield from client.add_roles(member, skronk)
 		yield from respond(message, "{} got SKRONK'D!!!! ({}m left)".format(member.mention, str(int(int(skronk_times[member.id])/60))))
@@ -435,8 +435,8 @@ def remove_skronk(member, message, silent=False, wait=True, absolute=False):
 	logger.info("Attempting to deskronk {}".format(get_discriminating_name(member)))
 
 	if member.id in skronk_times:
-		skronk_times[member.id] = skronk_times[member.id] - settings['skronk_timeout']
-		if skronk_times[member.id] == 0 or absolute:
+		skronk_times[member.id] = int(skronk_times[member.id]) - int(settings['skronk_timeout'])
+		if int(skronk_times[member.id]) == 0 or absolute:
 			del skronk_times[member.id]
 		else:
 			yield from respond("Only {}m of shame left {}.".format(skronk_times[member.id], member.mention))
