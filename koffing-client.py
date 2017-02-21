@@ -222,7 +222,7 @@ def on_message(message):
 				return
 			content = content.replace('timeout', '', 1).lstrip().rstrip()
 			if content.isdigit():
-				old = settings['skronk_timeout']
+				old = skronk_timeout()
 				settings['skronk_timeout'] = content
 				yield from respond(message, 'Skronk timeout changed from {}s to {}s'.format(old, content))
 			else:
@@ -416,27 +416,28 @@ def skronk(message):
 		else:
 			skronks[member.id] = 1
 		if member.id in skronk_times:
-			skronk_times[member.id] = int(skronk_times[member.id]) + int(settings['skronk_timeout'])
+			skronk_times[member.id] = int(skronk_times[member.id]) + int(skronk_timeout())
 		else:
-			skronk_times[member.id] = int(settings['skronk_timeout'])
+			skronk_times[member.id] = int(skronk_timeout())
+			client.loop.create_task(remove_skronk(member, message))
 		yield from client.add_roles(member, skronk)
-		yield from respond(message, "{} got SKRONK'D!!!! ({}m left)".format(member.mention, str(int(int(skronk_times[member.id])/60))))
-		client.loop.create_task(remove_skronk(member, message))
+		yield from respond(message, "{} got SKRONK'D!!!! ({}m left)".format(member.mention, str(get_skronk_time(member.id))))
 
 @asyncio.coroutine
 def remove_skronk(member, message, silent=False, wait=True, absolute=False):
 	'''Removes @member from skronk'''
 	global skronk_times
 	if wait:
-		yield from asyncio.sleep(int(settings['skronk_timeout']))
+		yield from asyncio.sleep(int(skronk_timeout()))
 	logger.info("Attempting to deskronk {}".format(get_discriminating_name(member)))
 
 	if member.id in skronk_times:
-		skronk_times[member.id] = int(skronk_times[member.id]) - int(settings['skronk_timeout'])
+		skronk_times[member.id] = int(skronk_times[member.id]) - int(skronk_timeout())
 		if int(skronk_times[member.id]) == 0 or absolute:
 			del skronk_times[member.id]
 		else:
-			yield from respond("Only {}m of shame left {}.".format(skronk_times[member.id], member.mention))
+			yield from respond(message, "Only {}m of shame left {}".format(str(get_skronk_time(member.id)), member.mention))
+			client.loop.create_task(remove_skronk(member, message, silent, wait, absolute))
 			return
 
 	skronk = get_skronk_role(message.server)
@@ -460,12 +461,20 @@ def clear_skronks(message, force=False):
 	skronked = members_of_role(message.server, role)
 	names= ""
 	for member in skronked:
-		yield from remove_skronk(member, message, True, False, True)
+		yield from remove_skronk(member, message, silent=True, wait=False, absolute=True)
 		names += member.mention + ", "
 	names = names.rstrip(', ')
 
-	yield from respond(message, "Hey {}. {} just saved your skronking lil' ass.".format(names, message.author.mention))
+	yield from respond(message, "Hey {}... {} just saved your skronking lil' ass.".format(names, message.author.mention))
 
+def get_skronk_time(member_id):
+	'''Gets the time left for a user specific id and returns it in minutes'''
+	if not member_id in skronk_times:
+		return 0
+	return int(int(skronk_times[member_id])/60)
+
+def skronk_timeout():
+	return int(settings['skronk_timeout'])
 
 def get_mentioned(message, everyone=True):
 	'''Gets everyone mentioned in a message. Aggregates members from all roles mentioned'''
@@ -687,7 +696,7 @@ def save_all(silent=False):
 
 def save_config(silent=False):
 	'''Save the configuration file'''
-	contents = {'authorized_channels': authorized_channels, 'authorized_servers': authorized_servers, 'muted_channels': muted_channels, 'admin_users': admin_users, 'game': game_str, 'skronk_timeout': settings['skronk_timeout']}
+	contents = {'authorized_channels': authorized_channels, 'authorized_servers': authorized_servers, 'muted_channels': muted_channels, 'admin_users': admin_users, 'game': game_str, 'skronk_timeout': skronk_timeout()}
 	if not silent:
 		logger.info('Writing settings to disk...')
 	save_file(CONFIG_FILE_PATH, contents)
