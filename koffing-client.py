@@ -64,8 +64,6 @@ enabled = json.load(open_file(FEATURE_FILE_PATH, False))
 votes = json.load(open_file(VOTE_FILE_PATH, False))
 skronks = json.load(open_file(SKRONK_FILE_PATH, False))
 skronk_times = {}
-if 'time' in skronks:
-	skronk_times = skronks['time']
 #--------------------------------------------------------------------
 client = discord.Client()
 
@@ -421,7 +419,6 @@ def skronk(message):
 			skronk_times[member.id] = int(skronk_times[member.id]) + int(settings['skronk_timeout'])
 		else:
 			skronk_times[member.id] = int(settings['skronk_timeout'])
-		skronks['time'] = skronk_times
 		yield from client.add_roles(member, skronk)
 		yield from respond(message, "{} got SKRONK'D!!!! ({}m left)".format(member.mention, str(int(int(skronk_times[member.id])/60))))
 		client.loop.create_task(remove_skronk(member, message))
@@ -431,7 +428,7 @@ def remove_skronk(member, message, silent=False, wait=True, absolute=False):
 	'''Removes @member from skronk'''
 	global skronk_times
 	if wait:
-		yield from asyncio.sleep(settings['skronk_timeout'])
+		yield from asyncio.sleep(int(settings['skronk_timeout']))
 	logger.info("Attempting to deskronk {}".format(get_discriminating_name(member)))
 
 	if member.id in skronk_times:
@@ -441,7 +438,6 @@ def remove_skronk(member, message, silent=False, wait=True, absolute=False):
 		else:
 			yield from respond("Only {}m of shame left {}.".format(skronk_times[member.id], member.mention))
 			return
-		skronks['time'] = skronk_times
 
 	skronk = get_skronk_role(message.server)
 	if skronk != None and skronk in member.roles:
