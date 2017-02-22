@@ -236,11 +236,14 @@ def on_message(message):
 		else:
 			yield from skronk(message)
 
+	elif content.startswith('/remindme'):
+		yield from remind_me(message)
+
+
 	# Message content scanning
 	else:
 		if not message.author.id==client.user.id:
 			yield from check_for_koffing(message)
-			# yield from check_for_thicc(message)
 
 @asyncio.coroutine
 def timed_save():
@@ -285,8 +288,42 @@ def check_for_koffing(message):
 			player = voice.create_ffmpeg_player('koffing.mp3')
 			player.start()
 
-def check_for_thicc(message):
+@asyncio.coroutine
+def remind_me(message):
+	'''Basic remindme functionality, works for seconds or minutes'''
+
+	contents = message.content.split(maxsplit=2)
+	#['/remindme', 'time', 'message']
+	if len(contents) < 3:
+		yield from respond(message, "Skronk!")
+		return
+
+	# Check for units on end of string
+	minutes = True
+	if not contents[1].isdigit():
+		if contents[1].endswith('m'):
+			contents[1] = str(int(int(contents[1][:-1])*60))
+		elif contents[1].endswith('s'):
+			contents[1] = contents[1][:-1]
+			minutes = False
+		if not contents[1].isdigit():
+			yield from respond(message, "Skronk!")
+			return
+
+	if minutes:
+		yield from respond(message, "Alright {}, I'll remind you in {}m".format(message.author.mention, str(int(int(contents[1])/60))))
+	else:
+		yield from respond(message, "Alright {}, I'll remind you in {}s".format(message.author.mention, contents[1]))
+	client.loop.create_task(delayed_response(message, "{} this is your reminder:\n{}{}".format(message.author.mention, " "*11, contents[2]), int(contents[1])))
+
 	return
+
+@asyncio.coroutine
+def delayed_response(message, content, time=300):
+	'''Sleeps for time seconds and then responds to the message with the given content'''
+	yield from asyncio.sleep(time)
+	if not client.is_closed:
+		yield from respond(message, content)
 
 @asyncio.coroutine
 def add_admin(message):
