@@ -39,7 +39,7 @@ VOTE_FILE_PATH = os.path.join(os.path.dirname(__file__), VOTE_FILE_NAME)
 SKRONK_FILE_NAME = 'skronk'
 SKRONK_FILE_PATH = os.path.join(os.path.dirname(__file__), SKRONK_FILE_NAME)
 SKRONKED = "SKRONK'D"
-SAVE_TIMEOUT = 300
+SAVE_TIMEOUT = 1800
 start_messages = ["Koffing-bot, go~!", "Get 'em Koffing-bot~!"]
 dev = True
 #--------------------------------------------------------------------
