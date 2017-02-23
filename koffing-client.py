@@ -299,23 +299,26 @@ def remind_me(message):
 		return
 
 	# Check for units on end of string
-	minutes = True
-	if not contents[1].isdigit():
+	if not contents[1].replace(".", "", 1).isdigit():
+		if contents[1].endswith('h'):
+			contents[1] = str(float(contents[1][:-1])*3600)
 		if contents[1].endswith('m'):
-			contents[1] = str(int(int(contents[1][:-1])*60))
+			contents[1] = str(float(contents[1][:-1])*60)
 		elif contents[1].endswith('s'):
 			contents[1] = contents[1][:-1]
-			minutes = False
-		if not contents[1].isdigit():
+		if not contents[1].replace(".", "", 1).isdigit():
 			yield from respond(message, "Skronk!")
 			return
-
-	if minutes:
-		yield from respond(message, "Alright {}, I'll remind you in {}m".format(message.author.mention, str(int(int(contents[1])/60))))
+	
+	# Respond based on the length of time to wait
+	if float(contents[1]) > 3600:
+		yield from respond(message, "Alright {}, I'll remind you in {:.2g}h".format(message.author.mention, float(contents[1])/60/60))
+	elif float(contents[1]) > 60:
+		yield from respond(message, "Alright {}, I'll remind you in {:.2g}m".format(message.author.mention, float(contents[1])/60))
 	else:
-		yield from respond(message, "Alright {}, I'll remind you in {}s".format(message.author.mention, contents[1]))
-	client.loop.create_task(delayed_response(message, "{} this is your reminder:\n{}{}".format(message.author.mention, " "*11, contents[2]), int(contents[1])))
-
+		yield from respond(message, "Alright {}, I'll remind you in {:.2g}s".format(message.author.mention, contents[1]))
+		
+	client.loop.create_task(delayed_response(message, "{} this is your reminder:\n{}{}".format(message.author.mention, " "*11, contents[2]), float(contents[1])))
 	return
 
 @asyncio.coroutine
