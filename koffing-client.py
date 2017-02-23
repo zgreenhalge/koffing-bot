@@ -58,7 +58,7 @@ authorized_servers = settings['authorized_servers']
 authorized_channels = settings['authorized_channels']
 muted_channels = settings['muted_channels']
 admin_users = settings['admin_users']
-game_str = settings['game'] 
+game_str = settings['game']
 enabled = json.load(open_file(FEATURE_FILE_PATH, False))
 #--------------------------------------------------------------------
 votes = json.load(open_file(VOTE_FILE_PATH, False))
@@ -71,8 +71,8 @@ client = discord.Client()
 @asyncio.coroutine
 def on_ready():
 	'''Called when the client has succesfully started up & logged in with our token'''
-	
-	logger.info('\n-----------------\nLogged in as %s - %s\n-----------------', client.user.name, client.user.id)    
+
+	logger.info('\n-----------------\nLogged in as %s - %s\n-----------------', client.user.name, client.user.id)
 	if dev==True:
 		logger.info('Member of the following servers:')
 		for server in client.servers:
@@ -87,7 +87,7 @@ def on_ready():
 				if channel.type==discord.ChannelType.text and can_message(server, channel) and enabled['greeting']:
 					logger.info('Alerting %s::%s to bot presence', server.name, channel.id)
 					yield from client.send_message(channel, start_messages[randint(0, len(start_messages)-1)])
-				
+
 @client.event
 @asyncio.coroutine
 def on_message(message):
@@ -116,7 +116,7 @@ def on_message(message):
 
 		# Help
 		if content.startswith('help'):
-			yield from respond(message, HELP)        
+			yield from respond(message, HELP)
 
 		#Admin management
 		elif content.startswith('admin'):
@@ -164,7 +164,7 @@ def on_message(message):
 				logger.info("  Setting bot to playing '{}'".format(game_str))
 				yield from client.change_presence(game=discord.Game(name=game_str))
 
-		# Manual save 
+		# Manual save
 		elif content.startswith('save'):
 			save_all()
 			yield from respond(message, "State saved.")
@@ -197,7 +197,7 @@ def on_message(message):
 		logger.info('  Pinning #SotD')
 		yield from pin(message)
 
-	# Voting 
+	# Voting
 	elif content.startswith('/vote'):
 		if not enabled['voting']:
 			yield from respond(message, "Voting is not enabled")
@@ -239,6 +239,8 @@ def on_message(message):
 	elif content.startswith('/remindme'):
 		yield from remind_me(message)
 
+	elif content.startswith('/hype'):
+		yield from hype(message)
 
 	# Message content scanning
 	else:
@@ -251,7 +253,7 @@ def timed_save():
 	while not client.is_closed:
 		# Sleep first so we don't save as soon as we launch
 		yield from asyncio.sleep(SAVE_TIMEOUT)
-		if not client.is_closed: 
+		if not client.is_closed:
 			#could have closed between start of loop & sleep
 			save_all()
 
@@ -262,7 +264,7 @@ def shutdown_message():
 		for channel in server.channels:
 			if channel.type==discord.ChannelType.text and can_message(server, channel) and enabled['greeting']:
 				logger.info('Alerting %s::%s to bot shutdown', server.name, channel.id)
-				yield from client.send_message(channel, 'Koffing-bot is going back to its pokeball~!')              
+				yield from client.send_message(channel, 'Koffing-bot is going back to its pokeball~!')
 
 @asyncio.coroutine
 def check_for_koffing(message):
@@ -309,7 +311,7 @@ def remind_me(message):
 		if not contents[1].replace(".", "", 1).isdigit():
 			yield from respond(message, "Skronk!")
 			return
-	
+
 	# Respond based on the length of time to wait
 	if float(contents[1]) > 3600:
 		yield from respond(message, "Alright {}, I'll remind you in {:.2g}h".format(message.author.mention, float(contents[1])/60/60))
@@ -317,9 +319,15 @@ def remind_me(message):
 		yield from respond(message, "Alright {}, I'll remind you in {:.2g}m".format(message.author.mention, float(contents[1])/60))
 	else:
 		yield from respond(message, "Alright {}, I'll remind you in {:.2g}s".format(message.author.mention, contents[1]))
-		
+
 	client.loop.create_task(delayed_response(message, "{} this is your reminder:\n{}{}".format(message.author.mention, " "*11, contents[2]), float(contents[1])))
 	return
+
+@asyncio.coroutine
+def hype(message):
+	phrase = message.content.split()[1]
+	hyped = " ".join([char for char in hype_phrase]).upper()
+	yield from respond(message, hyped)
 
 @asyncio.coroutine
 def delayed_response(message, content, time=300):
@@ -331,7 +339,7 @@ def delayed_response(message, content, time=300):
 @asyncio.coroutine
 def add_admin(message):
 	'''Add the mentioned members to the bot admin list'''
-	users = message.mentions 
+	users = message.mentions
 	channel = message.channel
 	for user in users:
 		user_str = get_discriminating_name(user)
@@ -381,13 +389,13 @@ def place_vote(message):
 
 	vote_getters = get_mentioned(message)
 	names = ''
-	for member in vote_getters: 
+	for member in vote_getters:
 		name = get_discriminating_name(member)
-		
+
 		if member.id == message.author.id:
 			continue #cannot vote for yourself
-		
-		names += member.mention + ", "	
+
+		names += member.mention + ", "
 		cur_votes, start_time = get_current_votes()
 		if cur_votes == None:
 			cur_votes = {name: 1}
@@ -441,7 +449,7 @@ def skronk(message):
 			skronk_em = True
 			no_skronk.append(member)
 			continue
-	
+
 	#Clean up list of skronkees
 	for member in no_skronk:
 		if member in skronked:
@@ -488,7 +496,7 @@ def remove_skronk(member, message, silent=False, wait=True, absolute=False):
 
 @asyncio.coroutine
 def clear_skronks(message, force=False):
-	'''Clears all skronks. If this is not a forced clear, it will not happen if the author is skronked''' 
+	'''Clears all skronks. If this is not a forced clear, it will not happen if the author is skronked'''
 	if not privileged(message.author):
 		yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
 		return
@@ -522,12 +530,12 @@ def get_mentioned(message, everyone=True):
 	if len(message.mentions) > 0:
 		for member in message.mentions:
 			mentioned.append(member)
-	
+
 	if len(message.role_mentions) > 0:
 		for role in message.role_mentions:
 			for member in members_of_role(message.server, role):
 				mentioned.append(member)
-	
+
 	if message.mention_everyone and everyone:
 		for member in message.server.members:
 			if(member.permissions_in(message.channel).read_messages):
@@ -543,7 +551,7 @@ def members_of_role(server, role):
 	for member in server.members:
 		if role in member.roles:
 			ret.append(member)
-	return ret		
+	return ret
 
 def get_skronk_role(server):
 	'''Finds the role named SKRONK'D'''
@@ -604,12 +612,12 @@ def get_vote_history(server, requestor):
 	for date in votes:
 		if string_to_date(date) < string_to_date(start) and string_to_date(date) - string_to_date(start) > timedelta(-8):
 			if(len(votes[date]) > 0):
-				sorted_users = sorted(votes[date], key=lambda tup: tup[1], reverse=False)			
+				sorted_users = sorted(votes[date], key=lambda tup: tup[1], reverse=False)
 				idx = 0
 				top_score = votes[date][sorted_users[idx]]
 				username = sorted_users[idx]
 				score = votes[date][username]
-				
+
 				while(score == top_score):
 					member = server.get_member_named(username)
 					if(member != None):
@@ -701,7 +709,7 @@ def unmute(server, channel):
 
 def get_date():
 	'''Returns a string of the current date in mm-dd-YYYY'''
-	return datetime.fromtimestamp(time.time()).strftime('%m-%d-%Y')        
+	return datetime.fromtimestamp(time.time()).strftime('%m-%d-%Y')
 
 def generate_koffing(server):
 	'''Returns a string of a happy koffing'''
