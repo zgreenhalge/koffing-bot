@@ -39,7 +39,7 @@ To run koffing bot locally:
   * Add an entry in `"authorized_channels"` of the form `"server_id": ['channel_name', 'other_channel']` for each channel and server that you want koffing-bot to pay attention to.
   * Add an entry in `"authorized_servers"` for every server listed in `"authorized_channels"` that you want koffing-bot to pay attention to.
 5. Launch koffing-bot:
-  * `python koffing-client.py`
+  * `python koffing-client.py <TOKEN>`
 
 ***At startup koffing-bot will list the server id of each server the acount is a member of.***
 
