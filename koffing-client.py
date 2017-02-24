@@ -325,8 +325,8 @@ def remind_me(message):
 
 @asyncio.coroutine
 def hype(message):
-	phrase = message.content.split()[1]
-	hyped = " ".join([char for char in hype_phrase]).upper()
+	phrase = message.content.split()[1:]
+	hyped = " ".join([char for char in phrase]).upper()
 	yield from respond(message, hyped)
 
 @asyncio.coroutine
