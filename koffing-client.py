@@ -325,9 +325,9 @@ def remind_me(message):
 
 @asyncio.coroutine
 def hype(message):
-	phrase = message.content.split()
-	hyped = "***" + " ".join("".join(phrase[1:])).upper() + "*** boyooooooo"
-	yield from respond(message, hyped)
+      phrase = message.content.replace('/hype', '', 1)
+      hyped = "***{}*** boyooooooo".format(" ".join(phrase).upper())
+      yield from respond(message, hyped)
 
 @asyncio.coroutine
 def delayed_response(message, content, time=300):
