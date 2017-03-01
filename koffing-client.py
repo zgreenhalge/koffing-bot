@@ -598,7 +598,32 @@ def get_vote_leaderboards(server, requester, call_out=True):
 
 	sorted_ch_lead = sorted(server_leaders, key=lambda tup: tup[1], reverse=True)
 
-	leaderboard_str = '\n \nLeaderboard for week of {}\n{} is in the lead!\nVotes close on {}```'.format(start, sorted_ch_lead[0][0].mention, date_to_string(string_to_date(start) + timedelta(7)))
+	leaders = []
+	idx = 0
+	top_score = cur_votes[sorted_ch_lead[idx]]
+	username = sorted_ch_lead[idx]
+	score = cur_votes[username]
+
+	while(score == top_score):
+		member = server.get_member_named(username)
+		if(member != None):
+			leaders.append(member)
+		idx = idx + 1
+		if(len(sorted_ch_lead) > idx ):
+			username = sorted_ch_lead[idx]
+			score = cur_votes[username]
+		else:
+			score = -1
+
+	if len(leaders) > 1:
+		for member in leaders:
+			string += member.mention + ', '
+		string = string.rstrip(', ')
+		leader_str = "It's a tie between {}!".format(string)
+	else:
+		leader_str = "{} is in the lead!".format(leaders[0].mention)
+
+	leaderboard_str = '\n \nLeaderboard for week of {}\n{}\nVotes close on {}```'.format(start, leader_str, date_to_string(string_to_date(start) + timedelta(7)))
 	for tup in sorted_ch_lead:
 		leaderboard_str += '{}: {}'.format(get_user_name(tup[0]), tup[1])
 		if requester.name == tup[0].name and call_out:
