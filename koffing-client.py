@@ -600,25 +600,27 @@ def get_vote_leaderboards(server, requester, call_out=True):
 
 	leaders = []
 	idx = 0
-	top_score = cur_votes[sorted_ch_lead[idx]]
-	username = sorted_ch_lead[idx]
-	score = cur_votes[username]
+	username = get_discriminating_name(sorted_ch_lead[idx][0])
+	score = sorted_ch_lead[idx][1]
+	top_score = score
 
 	while(score == top_score):
-		member = server.get_member_named(username)
+		member = sorted_ch_lead[idx][0]
 		if(member != None):
 			leaders.append(member)
 		idx = idx + 1
 		if(len(sorted_ch_lead) > idx ):
-			username = sorted_ch_lead[idx]
-			score = cur_votes[username]
+			username = get_discriminating_name(sorted_ch_lead[idx][0])
+			score = sorted_ch_lead[idx][1]
 		else:
 			score = -1
 
+	string = ""
 	if len(leaders) > 1:
 		for member in leaders:
 			string += member.mention + ', '
 		string = string.rstrip(', ')
+		string = ', and '.join(string.rsplit(', ', 1))
 		leader_str = "It's a tie between {}!".format(string)
 	else:
 		leader_str = "{} is in the lead!".format(leaders[0].mention)
