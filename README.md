@@ -34,6 +34,8 @@ To run koffing bot locally:
 1. Install [**python 3**](https://python.org)
 2. Install [**discord.py**](https://github.com/Rapptz/discord.py) with the command:
   * `python3 -m pip install -U discord.py`
+3. Install requests:
+  * `pip install requests`
 4. Modify koffing.cfg to contain the following things:
   * Add an entry in `"admin_users"` for any accounts you want. (`AccountName#1234`)
   * Add an entry in `"authorized_channels"` of the form `"server_id": ['channel_name', 'other_channel']` for each channel and server that you want koffing-bot to pay attention to.
