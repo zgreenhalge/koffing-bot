@@ -31,13 +31,13 @@ def open_file(path, array):
 LOG_FORMAT = '[%(asctime)-15s] [%(levelname)s] - %(message)s'
 HELP = 'Koffing~~ I will listen to any trainer with enough badges!```\nCommands (*=requires privilege):\n /koffing help\n*/koffing mute\n*/koffing unmute\n*/koffing admin [list] [remove (@user) [@user]] [add (@user) [@user]]\n*/koffing play [name]\n*/koffing return```'
 CONFIG_FILE_NAME = 'koffing.cfg'
-CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), CONFIG_FILE_NAME)
+CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), 'config', CONFIG_FILE_NAME)
 FEATURE_FILE_NAME = "feature_toggle.cfg"
-FEATURE_FILE_PATH = os.path.join(os.path.dirname(__file__), FEATURE_FILE_NAME)
+FEATURE_FILE_PATH = os.path.join(os.path.dirname(__file__), 'config', FEATURE_FILE_NAME)
 VOTE_FILE_NAME = 'vote_count'
-VOTE_FILE_PATH = os.path.join(os.path.dirname(__file__), VOTE_FILE_NAME)
+VOTE_FILE_PATH = os.path.join(os.path.dirname(__file__), 'config', VOTE_FILE_NAME)
 SKRONK_FILE_NAME = 'skronk'
-SKRONK_FILE_PATH = os.path.join(os.path.dirname(__file__), SKRONK_FILE_NAME)
+SKRONK_FILE_PATH = os.path.join(os.path.dirname(__file__), 'config', SKRONK_FILE_NAME)
 SKRONKED = "SKRONK'D"
 SAVE_TIMEOUT = 1800
 start_messages = ["Koffing-bot, go~!", "Get 'em Koffing-bot~!"]
@@ -47,10 +47,11 @@ dev = True
 date = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d')
 logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
-fh = logging.FileHandler(os.path.join(os.path.dirname(__file__), "LOG_" + date + ".txt"))
+fh = logging.FileHandler(os.path.join(os.path.dirname(__file__), 'logs', "LOG_" + date + ".txt"))
 fh.setLevel(logging.DEBUG)
 fh.setFormatter(logging.Formatter(LOG_FORMAT))
 logger.addHandler(fh)
+sys.stderr = open(os.path.join(os.path.dirname(__file__), 'logs', "ERR_" + date + ".txt"), 'a')
 #--------------------------------------------------------------------
 #Control lists
 settings = json.load(open_file(CONFIG_FILE_PATH, False))
