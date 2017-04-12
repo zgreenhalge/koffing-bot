@@ -9,8 +9,10 @@ import os
 from random import randint
 from datetime import datetime
 from datetime import timedelta
+from RiotAPI.RiotAPI import RiotAPI
+from RiotAPI.RiotAPI import roles
 
-if( len(sys.argv) != 2):
+if( len(sys.argv) < 2):
 	TOKEN = input('Please enter token: ')
 else:
 	TOKEN = sys.argv[1].lstrip().rstrip()
@@ -52,6 +54,7 @@ fh.setLevel(logging.DEBUG)
 fh.setFormatter(logging.Formatter(LOG_FORMAT))
 logger.addHandler(fh)
 sys.stderr = open(os.path.join(os.path.dirname(__file__), 'logs', "ERR_" + date + ".txt"), 'a')
+sys.stderr.write('#-----------------NEW SESSION----------------------------------------\n')
 #--------------------------------------------------------------------
 #Control lists
 settings = json.load(open_file(CONFIG_FILE_PATH, False))
@@ -65,6 +68,13 @@ enabled = json.load(open_file(FEATURE_FILE_PATH, False))
 votes = json.load(open_file(VOTE_FILE_PATH, False))
 skronks = json.load(open_file(SKRONK_FILE_PATH, False))
 skronk_times = {}
+#--------------------------------------------------------------------
+if( len(sys.argv) < 3):
+	RIOT_TOKEN = input('Please enter RIOT token: ')
+else:
+	RIOT_TOKEN = sys.argv[2].lstrip().rstrip()
+print("Instantiating RiotAPI")
+riotAPI = RiotAPI(RIOT_TOKEN)
 #--------------------------------------------------------------------
 client = discord.Client()
 
@@ -237,6 +247,13 @@ def on_message(message):
 		else:
 			yield from skronk(message)
 
+	elif content.startswith('/league'):
+		content = content.replace('/league', '', 1).lstrip().rstrip()
+		if content.startswith('lastgame'):
+			yield from last_game(message)
+		else:
+			yield from respond(message, "Skronk!")
+
 	elif content.startswith('/remindme'):
 		yield from remind_me(message)
 
@@ -247,6 +264,134 @@ def on_message(message):
 	else:
 		if not message.author.id==client.user.id:
 			yield from check_for_koffing(message)
+
+@asyncio.coroutine
+def last_game(message):
+	if not riotAPI.can_make_request():
+		yield from respond(message, " I've made too many requests to Riot servers too quickly.. wait a few minutes please!")
+		return
+
+	player_id = message.content.replace('/league lastgame', '', 1).lstrip().rstrip()
+	player_id = riotAPI.get_summoner_id(player_id)
+
+	while not riotAPI.can_make_request():
+		asyncio.sleep(0.5)
+	
+	recent_games = riotAPI.get_recent_games(player_id)
+	last_game_data = recent_games['games'][0]
+	player_stats = last_game_data['stats']
+
+	team = 'BLUE' if last_game_data['teamId'] == '100' else 'RED'
+	game_type = last_game_data['subType']
+	champion_id = last_game_data['championId']
+
+	while not riotAPI.can_make_request():
+		asyncio.sleep(0.5)
+	
+	champion_name = riotAPI.static_get_champion(champion_id)['name']
+	game_id = last_game_data['gameId']
+	summoner1 = last_game_data['spell1']
+	summoner2 = last_game_data['spell2']
+
+	while not riotAPI.can_make_request():
+		asyncio.sleep(0.5)
+
+	summoner1 = riotAPI.static_get_summoner_spell(summoner1)['name']
+
+	while not riotAPI.can_make_request():
+		asyncio.sleep(0.5)
+
+	summoner2 = riotAPI.static_get_summoner_spell(summoner2)['name']
+
+	while not riotAPI.can_make_request():
+		asyncio.sleep(0.5)
+	
+	summoner_info = riotAPI._summoner_request(player_id)[str(player_id)]
+	summoner_name = summoner_info['name']
+
+	while not riotAPI.can_make_request():
+		asyncio.sleep(0.5)
+
+	mastery_info = riotAPI.get_champion_mastery(player_id, champion_id)
+	points = mastery_info['championPoints']
+	points = '{:.1f}k'.format(float(points)/1000) if points > 1000 else points
+	champion_mastery = 'Level {} mastery - {} points'.format(mastery_info['championLevel'], points)
+
+	while not riotAPI.can_make_request():
+		asyncio.sleep(0.5)
+
+	match_data = riotAPI.get_match(game_id)
+	team_stats = match_data['teams'][0] if team == 'BLUE' else match_data['teams'][1]
+	date = '[date]'
+	towers = team_stats['towerKills']
+	inhibitors = team_stats['inhibitorKills']
+	dragons = team_stats['dragonKills']
+	barons = team_stats['baronKills']
+
+	team_kills = 0
+	team_deaths = 0
+	team_assists = 0
+
+	for participant in match_data['participants']:
+		stats = participant['stats']
+		if participant['teamId'] == last_game_data['teamId']:
+			if(participant['championId'] == champion_id):
+				sight_wards = stats['wardsPlaced']
+				control_wards = stats['visionWardsBoughtInGame']
+				wards_killed = stats['wardsKilled']
+				champion_lvl = stats['champLevel']
+			team_kills += stats['kills']
+			team_deaths += stats['deaths']
+			team_assists += stats['assists']
+
+
+	result = 'VICTORY' if player_stats['win'] == True else 'DEFEAT'
+	game_length = str(timedelta(seconds=player_stats['timePlayed']))
+	role = roles[player_stats['playerPosition']]
+	gold = player_stats['goldEarned']
+	gold_per_min = "{:.2f}".format(float(gold)/60)
+	kills = player_stats['championsKilled']
+	deaths = player_stats['numDeaths']
+	assists = player_stats['assists']
+	kill_participation = '{:.2f}%'.format((kills+assists)/team_kills*100)
+	creep_score = str(int(player_stats['minionsKilled']) + int(player_stats['neutralMinionsKilled']))
+	cs_per_min = "{:.2f}".format(float(creep_score)/60)
+	dmg_dealt = player_stats['totalDamageDealt']
+	physical_dmg = player_stats['physicalDamageDealtPlayer'] 
+	magical_dmg = player_stats['magicDamageDealtPlayer']
+	true_dmg = player_stats['trueDamageDealtPlayer']
+	taken_dmg = player_stats['totalDamageTaken']
+	taken_dmg_physical = player_stats['physicalDamageTaken']
+	taken_dmg_magical = player_stats['magicDamageTaken']
+	taken_dmg_true = player_stats['trueDamageTaken']
+
+	response = ('{gametype} \n'
+				'	**{result}** {gameLength}\n'
+				'	{team} team: {teamK}/{teamD}/{teamA}\n'
+				'	Towers:{towers} Inhibs:{inhibitors} Drags:{dragons} Barons:{barons}\n'
+				'	\n'
+				'	{ChampionName} {role} ({ChampionMastery})\n'
+				'	{Summoner1Icon}/{Summoner2Icon} \n'
+				'	{selfK}/{selfD}/{selfA} ({killParticipation} KP) {creepScore}cs ({csPerMin}/min) Lvl {championLvl}\n'
+				'	{gold}g ({goldPerMin}/min)\n\n'
+				'	Dmg dealt: {dmgDealt} - {physicalDmgDealt} physical, {magicDmgDealt} magical, {trueDmgDealt} true\n'
+				'	Dmg taken: {dmgTaken} - {physicalDmgTaken} physical, {magicDmgTaken} magical, {trueDmgTaken} true\n'
+				'	Wards: {greenWards} sight / {pinkWards} control / {wardsKilled} killed'
+				)
+
+	response = response.format(team=team, gametype=game_type, result=result, gameLength=game_length,
+								teamK=team_kills, teamD=team_deaths, teamA=team_assists, towers=towers, inhibitors=inhibitors, dragons=dragons, barons=barons,
+								SummonerName=summoner_name, Summoner1Icon=summoner1, Summoner2Icon=summoner2, role=role,
+								ChampionName=champion_name, championLvl=champion_lvl, ChampionMastery=champion_mastery,
+								selfK=kills, selfD=deaths, selfA=assists, killParticipation=kill_participation, 
+								creepScore=creep_score, csPerMin=cs_per_min, gold=gold, goldPerMin=gold_per_min,
+								dmgDealt=dmg_dealt, physicalDmgDealt=physical_dmg, magicDmgDealt=magical_dmg, trueDmgDealt=true_dmg,
+								dmgTaken = taken_dmg, physicalDmgTaken=taken_dmg_physical, magicDmgTaken=taken_dmg_magical, trueDmgTaken=taken_dmg_true,
+								greenWards=sight_wards, pinkWards=control_wards, wardsKilled=wards_killed,
+				)
+
+	yield from respond(message, "Last game for {} on {}: \n```{}```".format(summoner_name, date, response))
+
 
 @asyncio.coroutine
 def timed_save():
