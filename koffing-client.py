@@ -103,7 +103,7 @@ def on_ready():
 @asyncio.coroutine
 def on_message(message):
 	'''Fires whenthe client receieves a new message. Main starting point for message & command processing'''
-	logger.info('Received message from "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.server.name, message.channel.id)
+	logger.info('Received message from "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.server.name, message.channel.name)
 	if not authorized(message.server, message.channel):
 		if message.author.id == client.user.id:
 			yield from respond(message, "{} remove me from your server.".format(message.author.mention))
@@ -193,7 +193,6 @@ def on_message(message):
 		else:
 			yield from respond(message, "Skronk!")
 
-
 	# Actual commands and features:
 	# Auto pin messages starting with #SotD
 	# Voting (incl. leaderboards and history)
@@ -241,9 +240,9 @@ def on_message(message):
 		elif content.startswith('clear') and privileged(author):
 			content = content.replace('clear', '', 1).lstrip().rstrip()
 			if(content.startswith('force')):
-				yield from clear_skronks(message, True)
+				yield from clear_skronks(message, force=True, user_clear=True)
 			else:
-				yield from clear_skronks(message)
+				yield from clear_skronks(message, force=False, user_clear=True)
 		else:
 			yield from skronk(message)
 
@@ -267,12 +266,14 @@ def on_message(message):
 
 @asyncio.coroutine
 def last_game(message):
+	logger.info("  Trying to do last game things")
 	if not riotAPI.can_make_request():
 		yield from respond(message, " I've made too many requests to Riot servers too quickly.. wait a few minutes please!")
 		return
 
 	player_id = message.content.replace('/league lastgame', '', 1).lstrip().rstrip()
 	player_id = riotAPI.get_summoner_id(player_id)
+	logger.info("  Obtained player id: %s" % player_id)
 
 	while not riotAPI.can_make_request():
 		asyncio.sleep(0.5)
@@ -280,6 +281,7 @@ def last_game(message):
 	recent_games = riotAPI.get_recent_games(player_id)
 	last_game_data = recent_games['games'][0]
 	player_stats = last_game_data['stats']
+	logger.info('  Obtained last game stats.')
 
 	team = 'BLUE' if last_game_data['teamId'] == '100' else 'RED'
 	game_type = last_game_data['subType']
@@ -292,6 +294,9 @@ def last_game(message):
 	game_id = last_game_data['gameId']
 	summoner1 = last_game_data['spell1']
 	summoner2 = last_game_data['spell2']
+	date = float(last_game_data['createDate']/1000)
+	date = datetime.fromtimestamp(int(date))
+	date = str(date)
 
 	while not riotAPI.can_make_request():
 		asyncio.sleep(0.5)
@@ -316,17 +321,18 @@ def last_game(message):
 	points = mastery_info['championPoints']
 	points = '{:.1f}k'.format(float(points)/1000) if points > 1000 else points
 	champion_mastery = 'Level {} mastery - {} points'.format(mastery_info['championLevel'], points)
+	logger.info('  Obtained all static information..')
 
 	while not riotAPI.can_make_request():
 		asyncio.sleep(0.5)
 
 	match_data = riotAPI.get_match(game_id)
+	logger.info('  Obtained match info...')
 	team_stats = match_data['teams'][0] if team == 'BLUE' else match_data['teams'][1]
-	date = '[date]'
-	towers = team_stats['towerKills']
-	inhibitors = team_stats['inhibitorKills']
-	dragons = team_stats['dragonKills']
-	barons = team_stats['baronKills']
+	towers = team_stats.get('towerKills', 0)
+	inhibitors = team_stats.get('inhibitorKills', 0)
+	dragons = team_stats.get('dragonKills', 0)
+	barons = team_stats.get('baronKills', 0)
 
 	team_kills = 0
 	team_deaths = 0
@@ -336,34 +342,37 @@ def last_game(message):
 		stats = participant['stats']
 		if participant['teamId'] == last_game_data['teamId']:
 			if(participant['championId'] == champion_id):
-				sight_wards = stats['wardsPlaced']
-				control_wards = stats['visionWardsBoughtInGame']
-				wards_killed = stats['wardsKilled']
-				champion_lvl = stats['champLevel']
-			team_kills += stats['kills']
-			team_deaths += stats['deaths']
-			team_assists += stats['assists']
+				sight_wards = stats.get('wardsPlaced', 0)
+				control_wards = stats.get('visionWardsBoughtInGame', 0)
+				wards_killed = stats.get('wardsKilled', 0)
+				champion_lvl = stats.get('champLevel', 0)
+			team_kills += stats.get('kills', 0)
+			team_deaths += stats.get('deaths', 0)
+			team_assists += stats.get('assists', 0)
 
 
 	result = 'VICTORY' if player_stats['win'] == True else 'DEFEAT'
 	game_length = str(timedelta(seconds=player_stats['timePlayed']))
 	role = roles[player_stats['playerPosition']]
-	gold = player_stats['goldEarned']
+	gold = player_stats.get('goldEarned', 0)
 	gold_per_min = "{:.2f}".format(float(gold)/60)
-	kills = player_stats['championsKilled']
-	deaths = player_stats['numDeaths']
-	assists = player_stats['assists']
+	kills = player_stats.get('championsKilled', 0)
+	deaths = player_stats.get('numDeaths', 0)
+	assists = player_stats.get('assists', 0)
 	kill_participation = '{:.2f}%'.format((kills+assists)/team_kills*100)
-	creep_score = str(int(player_stats['minionsKilled']) + int(player_stats['neutralMinionsKilled']))
+
+	creep_score = player_stats.get('minionsKilled', 0) + player_stats.get('neutralMinionsKilled', 0)
 	cs_per_min = "{:.2f}".format(float(creep_score)/60)
-	dmg_dealt = player_stats['totalDamageDealt']
-	physical_dmg = player_stats['physicalDamageDealtPlayer'] 
-	magical_dmg = player_stats['magicDamageDealtPlayer']
-	true_dmg = player_stats['trueDamageDealtPlayer']
-	taken_dmg = player_stats['totalDamageTaken']
-	taken_dmg_physical = player_stats['physicalDamageTaken']
-	taken_dmg_magical = player_stats['magicDamageTaken']
-	taken_dmg_true = player_stats['trueDamageTaken']
+	dmg_dealt = player_stats.get('totalDamageDealt', 0)
+	physical_dmg = player_stats.get('physicalDamageDealtPlayer', 0)
+	magical_dmg = player_stats.get('magicDamageDealtPlayer', 0)
+	true_dmg = player_stats.get('trueDamageDealtPlayer', 0)
+	taken_dmg = player_stats.get('totalDamageTaken', 0)
+	taken_dmg_physical = player_stats.get('physicalDamageTaken', 0)
+	taken_dmg_magical = player_stats.get('magicDamageTaken', 0)
+	taken_dmg_true = player_stats.get('trueDamageTaken', 0)
+
+	logger.info('  Formatting response....')
 
 	response = ('{gametype} \n'
 				'	**{result}** {gameLength}\n'
@@ -390,7 +399,7 @@ def last_game(message):
 								greenWards=sight_wards, pinkWards=control_wards, wardsKilled=wards_killed,
 				)
 
-	yield from respond(message, "Last game for {} on {}: \n```{}```".format(summoner_name, date, response))
+	yield from respond(message, "Last game for {} on {} \n```{}```".format(summoner_name, date, response))
 
 
 @asyncio.coroutine
@@ -525,7 +534,7 @@ def pin(message):
 	except NotFound:
 		logger.warn('Message or channel has been deleted, pin failed')
 	except Forbidden:
-		logger.warn('Koffing-bot does not have sufficient permissions to pin in %s::%s'.format(server.name, channel.id))
+		logger.warn('Koffing-bot does not have sufficient permissions to pin in %s::%s', server.name, channel.id)
 	except (Error, Exception) as e:
 		logger.error('Could not pin message: {}'.format(e))
 
@@ -537,11 +546,14 @@ def place_vote(message):
 		return
 
 	vote_getters = get_mentioned(message)
+	voted_for_self = False
 	names = ''
 	for member in vote_getters:
 		name = get_discriminating_name(member)
 
 		if member.id == message.author.id:
+			yield from respond(message, "/skronk {} for voting for yourself...".format(message.author.mention))
+			voted_for_self = True
 			continue #cannot vote for yourself
 
 		names += member.mention + ", "
@@ -557,9 +569,9 @@ def place_vote(message):
 			votes[start_time] = cur_votes
 
 	names = names.rstrip(', ')
-	if len(vote_getters) > 0:
+	if len(names) > 0:
 		yield from respond(message, 'Congratulations {}! You got a vote!{}'.format(names, get_vote_leaderboards(message.server, message.author, False)))
-	else:
+	elif not voted_for_self:
 		yield from respond(message, "You didn't tag anyone you can vote for {}".format(message.author.mention))
 
 @asyncio.coroutine
@@ -621,7 +633,7 @@ def skronk(message):
 		yield from respond(message, "{} got SKRONK'D!!!! ({}m left)".format(member.mention, str(get_skronk_time(member.id))))
 
 @asyncio.coroutine
-def remove_skronk(member, message, silent=False, wait=True, absolute=False):
+def remove_skronk(member, message, silent=False, wait=True, absolute=False, user_clear=False):
 	'''Removes @member from skronk'''
 	global skronk_times
 	if wait:
@@ -630,7 +642,7 @@ def remove_skronk(member, message, silent=False, wait=True, absolute=False):
 
 	if member.id in skronk_times:
 		skronk_times[member.id] = int(skronk_times[member.id]) - int(skronk_timeout())
-		if int(skronk_times[member.id]) == 0 or absolute:
+		if int(skronk_times[member.id]) == 0 or absolute or user_clear:
 			del skronk_times[member.id]
 		else:
 			yield from respond(message, "Only {}m of shame left {}".format(str(get_skronk_time(member.id)), member.mention))
@@ -644,7 +656,7 @@ def remove_skronk(member, message, silent=False, wait=True, absolute=False):
 			yield from respond(message, "You're out of skronk {}!".format(member.mention))
 
 @asyncio.coroutine
-def clear_skronks(message, force=False):
+def clear_skronks(message, force=False, user_clear=False):
 	'''Clears all skronks. If this is not a forced clear, it will not happen if the author is skronked'''
 	if not privileged(message.author):
 		yield from respond(message, "I'm afraid you can't do that {}".format(author.mention))
@@ -652,18 +664,29 @@ def clear_skronks(message, force=False):
 
 	role = get_skronk_role(message.server)
 	if role in message.author.roles and not force:
-		yield from respond(message, "You can't get out of this that easily..")
+		yield from respond(message, "You can't do that..")
+		yield from respond(message, "/skronk {}".format(message.author.mention))
 		return
 
+	tagged = get_mentioned(message)
 	skronked = members_of_role(message.server, role)
-	names= ""
-	for member in skronked:
-		yield from remove_skronk(member, message, silent=True, wait=False, absolute=True)
-		names += member.mention + ", "
+	names = ""
+	if len(tagged) > 0:
+		for member in tagged:
+			if role in member.roles:
+				yield from remove_skronk(member, message, silent=True, wait=False, absolute=force, user_clear=True)
+				names += member.mention + ", "
+	else:
+		for member in skronked:
+			yield from remove_skronk(member, message, silent=True, wait=False, absolute=force, user_clear=True)
+			names += member.mention + ", "
 	names = names.rstrip(', ')
-
-	yield from respond(message, "Hey {}... {} just saved your skronking lil' ass.".format(names, message.author.mention))
-
+	
+	logger.info("--{}".format(names))
+	if len(names) > 0:
+		yield from respond(message, "Hey {}... {} just saved your skronking lil' ass.".format(names, message.author.mention))
+	else:
+		yield from respond(message, "There was no one to remove from skronk...")
 def get_skronk_time(member_id):
 	'''Gets the time left for a user specific id and returns it in minutes'''
 	if not member_id in skronk_times:
