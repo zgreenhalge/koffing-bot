@@ -122,10 +122,10 @@ def load_settings():
 	if not os.path.exists(config_dir):
 		os.makedirs(config_dir)
 
-	settings = json.load(open_file(CONFIG_FILE_PATH, False))
-	enabled = json.load(open_file(FEATURE_FILE_PATH, False))
-	votes = json.load(open_file(VOTE_FILE_PATH, False))
-	skronks = json.load(open_file(SKRONK_FILE_PATH, False))
+	settings = json.load(file(CONFIG_FILE_PATH, False))
+	enabled = json.load(file(FEATURE_FILE_PATH, False))
+	votes = json.load(file(VOTE_FILE_PATH, False))
+	skronks = json.load(file(SKRONK_FILE_PATH, False))
 
 	authorized_servers = settings['authorized_servers']
 	authorized_channels = settings['authorized_channels']
