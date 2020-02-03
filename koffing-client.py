@@ -117,6 +117,11 @@ logger.info("Loading settings...")
 
 def load_settings():
 	global settings, enabled, votes, skronks, authorized_servers, authorized_channels, muted_channels, admin_users, game_str, SILENT_MODE, SAVE_TIMEOUT
+	
+	configDir = os.path.join(os.path.dirname(__file__), 'config')
+	if not os.path.exists(config_dir):
+		os.makedirs(config_dir)
+		
 	settings = json.load(open_file(CONFIG_FILE_PATH, False))
 	enabled = json.load(open_file(FEATURE_FILE_PATH, False))
 	votes = json.load(open_file(VOTE_FILE_PATH, False))
