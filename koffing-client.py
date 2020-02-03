@@ -92,9 +92,8 @@ class ErrStreamToLogger(object):
 		self.linebuf = ''
 
 	def write(self, buf):
-		final = buf
+		final = ''
 		if not buf.isspace():
-			final = ''
 			for line in buf.lstrip().rstrip().splitlines():
 				if line and not line.isspace():
 					final = final + '\n' + line.lstrip() 
@@ -133,7 +132,7 @@ err_logger.info('###############################################')
 logger.info("Loading settings...")
 
 def load_settings():
-	global settings, enabled, votes, skronks, authorized_servers, authorized_channels, muted_channels, admin_users, game_str, SILENT_MODE, SAVE_TIMEOUT
+	global settings, enabled, votes, skronks, authorized_guilds, authorized_channels, muted_channels, admin_users, game_str, SILENT_MODE, SAVE_TIMEOUT
 	
 	config_dir = os.path.join(os.path.dirname(__file__), 'config')
 	if not os.path.exists(config_dir):
@@ -144,7 +143,7 @@ def load_settings():
 	votes = turn_file_to_json(VOTE_FILE_PATH, False)
 	skronks = turn_file_to_json(SKRONK_FILE_PATH, False)
 
-	authorized_servers = settings['authorized_servers']
+	authorized_guilds = settings['authorized_guilds']
 	authorized_channels = settings['authorized_channels']
 	muted_channels = settings['muted_channels']
 	admin_users = settings['admin_users']
@@ -169,18 +168,18 @@ def on_ready():
 	'''
 	logger.info('\n-----------------\nLogged in as %s - %s\n-----------------', client.user.name, client.user.id)
 	if dev==True:
-		logger.info('Member of the following servers:')
-		for server in client.servers:
-			logger.info('%s (%s)', server.name, server.id)
+		logger.info('Member of the following guilds:')
+		for guild in client.guild:
+			logger.info('%s (%s)', guild.name, guild.id)
 
 	new_game = discord.Game(name=game_str)
 	yield from client.change_presence(game=new_game)
 
-	for server in client.servers:
-		if server.id in authorized_servers:
-			for channel in server.channels:
-				if channel.type==discord.ChannelType.text and can_message(server, channel) and enabled['greeting']:
-					logger.info('Alerting %s::%s to bot presence', server.name, channel.id)
+	for guild in client.guild:
+		if guild.id in guild:
+			for channel in guild.channels:
+				if channel.type==discord.ChannelType.text and can_message(guild, channel) and enabled['greeting']:
+					logger.info('Alerting %s::%s to bot presence', guild.name, channel.id)
 					yield from client.send_message(channel, START_MESSAGES[randint(0, len(START_MESSAGES)-1)])
 	logger.info('Koffing-bot is up and running!')
 
@@ -190,17 +189,17 @@ def on_message(message):
 	'''
 	Fires when the client receieves a new message. Main starting point for message & command processing
 	'''
-	if None == message.channel or None == message.server:
+	if None == message.channel or None == message.guild:
 		yield from on_direct_message(message)
 		return
 
-	logger.info('Received message from "%s" (%s) in %s::%s', message.author.name, get_discriminating_name(message.author), message.server.name, message.channel.name)
-	if not authorized(message.server, message.channel):
+	logger.info('Received message from "%s" (%s) in %s::%s', message.author.name, get_discriminating_name(message.author), message.guild.name, message.channel.name)
+	if not authorized(message.guild, message.channel):
 		logger.debug('Channel is unauthorized - not processing')
 		return
 
 	global game_str, SILENT_MODE, restart
-	server = message.server
+	guild = message.guild
 	channel = message.channel
 	content = (message.content + '.')[:-1].lower()
 	author = message.author
@@ -232,9 +231,9 @@ def on_message(message):
 			# check vote timeout & reset if needed
 			content = content.replace(cmd_prefix + 'vote', '', 1).lstrip().rstrip()
 			if content.startswith('leaderboard') or content.startswith('boards') or content.startswith('leaders'):
-				yield from respond(message, get_vote_leaderboards(server, author), True)
+				yield from respond(message, get_vote_leaderboards(guild, author), True)
 			elif content.startswith('history'):
-				yield from respond(message, get_vote_history(server, author), True)
+				yield from respond(message, get_vote_history(guild, author), True)
 			else:
 				yield from place_vote(message)
 
@@ -295,7 +294,7 @@ def admin_console(message, content):
 	-Manually save state
 	-Shut down bot
 	'''
-	server = message.server
+	guild = message.guild
 	channel = message.channel
 	author = message.author
 
@@ -310,7 +309,7 @@ def admin_console(message, content):
 	elif content.startswith('admin'):
 		content = content.replace('admin', '', 1).lstrip().rstrip()
 		if content.startswith('list'):
-			yield from respond(message, get_admin_list(server))
+			yield from respond(message, get_admin_list(guild))
 		elif (content.startswith('rm') or content.startswith('remove')):
 			yield from remove_admin(message)
 		elif content.startswith('add'):
@@ -322,18 +321,18 @@ def admin_console(message, content):
 			yield from respond(message, 'Mute is not enabled', emote="x")
 		else:
 			yield from respond(message, "Koffing...")
-			mute(server, channel)
+			mute(guild, channel)
 
 	#Unmute control. Gets koffing to listen to a channel again
 	elif content.startswith('unmute'):
 		if not enabled["mute"]:
 			yield from respond(message, 'Mute is not enabled', emote="x")
 		else:
-			if muted(server, channel):
-				response, emoji = generate_koffing(server)
-				logger.info('Responding to "%s" (%s) in %s::%s', author.display_name, get_discriminating_name(author), server.name, channel.id)
+			if muted(guild, channel):
+				response, emoji = generate_koffing(guild)
+				logger.info('Responding to "%s" (%s) in %s::%s', author.display_name, get_discriminating_name(author), guild.name, channel.id)
 				yield from respond(message, response)
-			unmute(server, channel)
+			unmute(guild, channel)
 
 	# Game display
 	elif content.startswith('game') or content.startswith('play'):
@@ -357,7 +356,7 @@ def admin_console(message, content):
 	#Silent mode toggle
 	elif content.startswith('quiet'):
 		SILENT_MODE = not SILENT_MODE
-		response, emoji = generate_koffing(message.server)
+		response, emoji = generate_koffing(message.guild)
 		yield from respond(message, response)
 
 	elif content.startswith('throw'):
@@ -414,16 +413,16 @@ def shutdown_message(message):
 	'''
 	Saves state and then alerts all channels that it is shutting down
 	'''
-	for server in client.servers:
-		for channel in server.channels:
+	for guild in client.guild:
+		for channel in guild.channels:
 			if channel.type==discord.ChannelType.text:
-				if can_message(server, channel) and enabled['greeting']:
-					logger.info('Alerting %s::%s to bot shutdown', server.name, channel.name)
+				if can_message(guild, channel) and enabled['greeting']:
+					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
 					yield from client.send_message(channel, 'Koffing-bot is going back to its pokeball~!')
-				elif message.server == None or message.channel == None:
+				elif message.guild == None or message.channel == None:
 					continue
-				elif server.id == message.server.id and channel.id == message.channel.id:
-					logger.info('Alerting %s::%s to bot shutdown', server.name, channel.name)
+				elif guild.id == message.guild.id and channel.id == message.channel.id:
+					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
 					yield from client.send_message(channel, 'Koffing-bot is going back to its pokeball~!')
 
 @asyncio.coroutine
@@ -435,12 +434,12 @@ def check_for_koffing(message):
 	if 'koffing' in message.content.lower() or client.user.mentioned_in(message):
 		logger.debug('Found a koffing in the message!')
 
-		if can_message(message.server, message.channel) and enabled["text_response"]:
+		if can_message(message.guild, message.channel) and enabled["text_response"]:
 			# Quiet skip this, since that's the point of disabled text response
 			if not SILENT_MODE:
 				yield from client.send_typing(message.channel)
 
-			response, emoji = generate_koffing(message.server)
+			response, emoji = generate_koffing(message.guild)
 			asyncio.sleep(randint(0,1))
 			yield from respond(message, response)
 			if(emoji != None and not SILENT_MODE):
@@ -450,7 +449,7 @@ def check_for_koffing(message):
 		# need to figure out ffmpeg before this will work
 		if message.author.voice_channel != None and enabled["voice_response"]:
 			logger.debug('Attempting to play in voice channel %s', message.author.voice_channel.id)
-			voice = voice_client_int(message.server)
+			voice = voice_client_int(message.guild)
 			if voice == None or voice.channel != message.author.voice_channel:
 				voice = yield from client.join_voice_channel(message.author.voice_channel)
 			player = voice.create_ffmpeg_player('koffing.mp3')
@@ -487,7 +486,7 @@ def remind_me(message):
 	yield from direct_response(message, "Alright, reminding you at {}".format(wakeup))
 
 
-	if(message.server != None):
+	if(message.guild != None):
 			yield from koffing_reaction(message)
 	task_list.append(client.loop.create_task(delayed_response(message, "{} this is your reminder:\n{}{}".format(message.author.mention, " "*11, contents[2]), float(time))))
 	return
@@ -562,7 +561,7 @@ def respond(message, text, ignore_silent=False, emote="koffing"):
 		logger.info('Muted response to "%s" (%s) in %s::%s',
 				message.author.display_name,
 				get_discriminating_name(message.author),
-				message.server.name, 
+				message.guild.name, 
 				message.channel.id)
 		if emote == "koffing":
 			yield from koffing_reaction(message)
@@ -572,8 +571,8 @@ def respond(message, text, ignore_silent=False, emote="koffing"):
 			yield from negative_reaction(message)
 	else:
 		#Standard respond
-		if not muted(message.server, message.channel):
-			logger.info('Responding to "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.server.name, message.channel.id)
+		if not muted(message.guild, message.channel):
+			logger.info('Responding to "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.guild.name, message.channel.id)
 			if SILENT_MODE:
 				logger.debug('Loud response requested!')
 			yield from client.send_message(message.channel, text)
@@ -595,7 +594,7 @@ def negative_reaction(message):
 	'''
 	React negatively to the message
 	'''
-	emoji = get_x_emoji(message.server)
+	emoji = get_x_emoji(message.guild)
 	if emoji == None or emoji == '':
 		logger.info('Got a blank value for X emote, no reaction possible')
 	else:
@@ -607,7 +606,7 @@ def positive_reaction(message):
 	'''
 	React positively to the message
 	'''
-	emoji = get_ok_emoji(message.server)
+	emoji = get_ok_emoji(message.guild)
 	if emoji == None or emoji == '':
 		logger.info('Got a blank value for ok_hand emote, no reaction possible')
 	else:
@@ -619,7 +618,7 @@ def koffing_reaction(message):
 	'''
 	React koffing-ly to the message
 	'''
-	emoji = get_koffing_emoji(message.server)
+	emoji = get_koffing_emoji(message.guild)
 	if emoji == None or emoji == '':
 		logger.info('Got a blank value for koffing emote, no reaction possible')
 	else:
@@ -638,7 +637,7 @@ def pin(message):
 	except NotFound:
 		err_logger.warn('Message or channel has been deleted, pin failed')
 	except Forbidden:
-		err_logger.warn('Koffing-bot does not have sufficient permissions to pin in %s::%s', server.name, channel.id)
+		err_logger.warn('Koffing-bot does not have sufficient permissions to pin in %s::%s', guild.name, channel.id)
 	except (Error, Exception) as e:
 		err_logger.error('Could not pin message: {}'.format(e))
 
@@ -678,7 +677,7 @@ def place_vote(message):
 
 	names = names.rstrip(', ')
 	if len(names) > 0:
-		yield from respond(message, 'Congratulations {}! You got a vote!{}'.format(names, get_vote_leaderboards(message.server, message.author, False)))
+		yield from respond(message, 'Congratulations {}! You got a vote!{}'.format(names, get_vote_leaderboards(message.guild, message.author, False)))
 	elif not voted_for_self:
 		yield from respond(message, "You didn't tag anyone you can vote for {}".format(message.author.mention), emote="x")
 
@@ -690,7 +689,7 @@ def skronk(message):
 	logger.info('Skronking..')
 
 	global skronk_times
-	skronk = get_skronk_role(message.server)
+	skronk = get_skronk_role(message.guild)
 	if skronk == None:
 		yield from respond(message, "There will be no skronking here.", emote="x")
 		return
@@ -701,7 +700,7 @@ def skronk(message):
 		return
 
 	# Is the author skronked already?
-	if is_skronked(message.author, message.server, skronk):
+	if is_skronked(message.author, message.guild, skronk):
 		yield from respond(message, "What is skronked may never skronk.", emote="x")
 		return
 
@@ -763,7 +762,7 @@ def remove_skronk(member, message, silent=False, wait=True, absolute=False, user
 			task_list.append(client.loop.create_task(remove_skronk(member, message, silent, wait, absolute)))
 			return
 
-	skronk = get_skronk_role(message.server)
+	skronk = get_skronk_role(message.guild)
 	if skronk != None and skronk in member.roles:
 		yield from client.remove_roles(member, skronk)
 		if not silent:
@@ -780,7 +779,7 @@ def clear_skronks(message, force=False, user_clear=False):
 		yield from respond(message, "I'm afraid you can't do that {}".format(author.mention), emote="x")
 		return
 
-	role = get_skronk_role(message.server)
+	role = get_skronk_role(message.guild)
 	if role in message.author.roles and not force:
 		yield from respond(message, "You can't do that..", emote="x")
 		if not SILENT_MODE:
@@ -788,7 +787,7 @@ def clear_skronks(message, force=False, user_clear=False):
 		return
 
 	tagged = get_mentioned(message)
-	skronked = members_of_role(message.server, role)
+	skronked = members_of_role(message.guild, role)
 	names = ""
 	if len(tagged) > 0:
 		for member in tagged:
@@ -828,11 +827,11 @@ def get_mentioned(message, everyone=True):
 
 	if len(message.role_mentions) > 0:
 		for role in message.role_mentions:
-			for member in members_of_role(message.server, role):
+			for member in members_of_role(message.guild, role):
 				mentioned.append(member)
 
 	if message.mention_everyone and everyone:
-		for member in message.server.members:
+		for member in message.guild.members:
 			if(member.permissions_in(message.channel).read_messages):
 				mentioned.append(member)
 
@@ -840,31 +839,31 @@ def get_mentioned(message, everyone=True):
 	mentioned = [x for x in mentioned if x not in seen and not seen.add(x)]
 	return mentioned
 
-def members_of_role(server, role):
+def members_of_role(guild, role):
 	'''
-	Returns an array of all members for the given role in the given server
+	Returns an array of all members for the given role in the given guild
 	'''
 	logger.info("Looking for all members of {}".format(role.name))
 	ret = []
-	for member in server.members:
+	for member in guild.members:
 		if role in member.roles:
 			ret.append(member)
 	return ret
 
-def get_skronk_role(server):
+def get_skronk_role(guild):
 	'''
 	Finds the role named SKRONK'D
 	'''
 	logger.info("Looking for skronk role...")
-	for role in server.roles:
+	for role in guild.roles:
 		if role.name.lower() == SKRONKED.lower():
 			return role
 	logger.info("Did not find role named {}".format(SKRONKED))
 	return None
 
-def is_skronked(member, server, skronk):
+def is_skronked(member, guild, skronk):
 	'''
-	Returns true if the member is skronked in this server
+	Returns true if the member is skronked in this guild
 	'''
 	if skronk == None:
 		return False
@@ -874,37 +873,37 @@ def is_skronked(member, server, skronk):
 			return True
 	return False
 
-def get_admin_list(server):
+def get_admin_list(guild):
 	'''
 	Gets a string containing the list of bot admins
 	'''
 	logger.info('Obtaining admin list')
 	admin_str = 'listens to the following trainers:\n'
 	for user in admin_users:
-		admin = server.get_member_named(user)
+		admin = guild.get_member_named(user)
 		if admin != None:
 			admin_str += ' -' + admin.mention + '\n'
 	return admin_str
 
-def get_vote_leaderboards(server, requester, call_out=True):
+def get_vote_leaderboards(guild, requester, call_out=True):
 	'''
 	Returns a string of the current vote leaderboard
 	'''
 	logger.info('Compiling vote leaderboards...')
-	server_leaders = []
+	guild_leaders = []
 	cur_votes, start = get_current_votes()
 	if(cur_votes == None):
-		return 'No one in {} has recieved any votes!'.format(server.name)
+		return 'No one in {} has recieved any votes!'.format(guild.name)
 
 	for user_name in cur_votes:
-		member = server.get_member_named(user_name)
+		member = guild.get_member_named(user_name)
 		if member != None:
-			server_leaders.append((member, cur_votes[user_name]))
+			guild_leaders.append((member, cur_votes[user_name]))
 
-	if len(server_leaders) == 0:
-		return 'No one in {} has recieved any votes!'.format(server.name)
+	if len(guild_leaders) == 0:
+		return 'No one in {} has recieved any votes!'.format(guild.name)
 
-	sorted_ch_lead = sorted(server_leaders, key=lambda tup: tup[1], reverse=True)
+	sorted_ch_lead = sorted(guild_leaders, key=lambda tup: tup[1], reverse=True)
 
 	leaders = []
 	idx = 0
@@ -943,7 +942,7 @@ def get_vote_leaderboards(server, requester, call_out=True):
 	leaderboard_str +='```'
 	return leaderboard_str
 
-def get_vote_history(server, requestor):
+def get_vote_history(guild, requestor):
 	'''
 	Returns a string of all the winners of each recorded voting session
 	'''
@@ -961,7 +960,7 @@ def get_vote_history(server, requestor):
 				score = votes[date][username]
 
 				while(score == top_score):
-					member = server.get_member_named(username)
+					member = guild.get_member_named(username)
 					if(member != None):
 						leaders.append([date, member, score])
 					idx = idx + 1
@@ -975,7 +974,7 @@ def get_vote_history(server, requestor):
 	current_date = None
 
 	if(len(leaders) == 0):
-		history_str = "This server has no vote winners..."
+		history_str = "This guild has no vote winners..."
 	else:
 		leaders = sorted(leaders, key=lambda tup: datetime.strptime(tup[0], pretty_date_format))
 		for tup in leaders:
@@ -1019,11 +1018,11 @@ def string_to_date(string):
 	'''
 	return datetime.strptime(string, pretty_date_format).date()
 
-def can_message(server, channel):
+def can_message(guild, channel):
 	'''
 	True if the bot is authorized and unmuted for the channel, False otherwise
 	'''
-	return authorized(server, channel) and not muted(server, channel)
+	return authorized(guild, channel) and not muted(guild, channel)
 
 def privileged(user):
 	'''
@@ -1037,41 +1036,41 @@ def get_discriminating_name(user):
 	'''
 	return '{}#{}'.format(user.name, user.discriminator)
 
-def authorized(server, channel):
+def authorized(guild, channel):
 	'''
 	True if the bot is authorized in this channel
 	'''
-	if server.id in authorized_servers:
-		return channel.id in authorized_channels[server.id]
+	if guild.id in authorized_guild:
+		return channel.id in authorized_channels[guild.id]
 	return False
 
-def muted(server, channel):
+def muted(guild, channel):
 	'''
 	True if the bot is muted in this channel
 	'''
-	if server.id in muted_channels:
-		return channel.id in muted_channels[server.id]
+	if guild.id in muted_channels:
+		return channel.id in muted_channels[guild.id]
 	return False
 
-def mute(server, channel):
+def mute(guild, channel):
 	'''
 	Adds the channel to the muted list
 	'''
-	logger.info('Muting channel {}::{}...', server.name, channel.name)
-	if server.id in muted_channels:
-		if channel.id not in muted_channels[server.id]:
-			muted_channels[server.id].append(channel.id)
+	logger.info('Muting channel {}::{}...', guild.name, channel.name)
+	if guild.id in muted_channels:
+		if channel.id not in muted_channels[guild.id]:
+			muted_channels[guild.id].append(channel.id)
 	else:
-		muted_channels[server.id] = [channel.id]
+		muted_channels[guild.id] = [channel.id]
 
-def unmute(server, channel):
+def unmute(guild, channel):
 	'''
 	Removes the channel from the muted list
 	'''
-	logger.info('Unmuting channel {}::{}...', server.name, channel.name)
-	if server.id in muted_channels:
-		if channel.id in muted_channels[server.id]:
-			muted_channels[server.id].remove(channel.id)
+	logger.info('Unmuting channel {}::{}...', guild.name, channel.name)
+	if guild.id in muted_channels:
+		if channel.id in muted_channels[guild.id]:
+			muted_channels[guild.id].remove(channel.id)
 
 def get_date():
 	'''
@@ -1079,11 +1078,11 @@ def get_date():
 	'''
 	return datetime.fromtimestamp(time.time()).strftime('%m-%d-%Y')
 
-def generate_koffing(server):
+def generate_koffing(guild):
 	'''
 	Returns a string of a happy koffing
 	'''
-	koffing_emoji = get_koffing_emoji(server)
+	koffing_emoji = get_koffing_emoji(guild)
 	koffing_str = None
 	response = None
 
@@ -1101,26 +1100,26 @@ def generate_koffing(server):
 		response = koffing_core_str
 	return response, koffing_emoji
 
-def get_koffing_emoji(server):
+def get_koffing_emoji(guild):
 	'''
-	Returns the koffing emoji if this server has one, None otherwise
+	Returns the koffing emoji if this guild has one, None otherwise
 	'''
 	return_emoji = ''
-	if server == None:
+	if guild == None:
 		return return_emoji
 
-	for emoji in server.emojis:
+	for emoji in guild.emojis:
 		if emoji.name == 'koffing':
 			return_emoji = emoji
 	return return_emoji
 
-def get_ok_emoji(server):
+def get_ok_emoji(guild):
 	'''
 	Returns the checkmark emoji
 	'''
 	return '\N{OK Hand Sign}'
 
-def get_x_emoji(server):
+def get_x_emoji(guild):
 	'''
 	Returns the checkmark emoji
 	'''
@@ -1141,7 +1140,7 @@ def save_config(silent=False):
 	'''
 	Save the configuration file
 	'''
-	contents = {'authorized_channels': authorized_channels, 'authorized_servers': authorized_servers, 'muted_channels': muted_channels, 'admin_users': admin_users, 'game': game_str, 'skronk_timeout': skronk_timeout(), 'silent_mode': SILENT_MODE, 'save_timeout': SAVE_TIMEOUT}
+	contents = {'authorized_channels': authorized_channels, 'authorized_guilds': authorized_guilds, 'muted_channels': muted_channels, 'admin_users': admin_users, 'game': game_str, 'skronk_timeout': skronk_timeout(), 'silent_mode': SILENT_MODE, 'save_timeout': SAVE_TIMEOUT}
 	if not silent:
 		logger.info('Writing settings to disk...')
 	save_file(CONFIG_FILE_PATH, contents)
