@@ -83,8 +83,7 @@ class ErrStreamToLogger(object):
 				final = final + '\n' + line 
 		self.logger.log(self.log_level, final)
 
-def get_current_date():
-	datetime.fromtimestamp(time.time()).strftime(date_format) + ""
+datetime_str = datetime.fromtimestamp(time.time()).strftime(date_format)
 
 logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 log_dir = os.path.join(os.path.dirname(__file__), 'logs')
@@ -92,7 +91,7 @@ log_dir = os.path.join(os.path.dirname(__file__), 'logs')
 if not os.path.exists(log_dir):
 	os.makedirs(log_dir)
 
-logHandler = logging.FileHandler(os.path.join(os.path.dirname(__file__), 'logs', "LOG_" + get_current_date() + ".txt"), mode='a', encoding='utf-8')
+logHandler = logging.FileHandler(os.path.join(os.path.dirname(__file__), 'logs', 'LOG_' + datetime_str + '.txt'), mode='a', encoding='utf-8')
 logHandler.setLevel(logging.DEBUG)
 logHandler.setFormatter(logging.Formatter(LOG_FORMAT))
 
@@ -102,7 +101,7 @@ logger.addHandler(logHandler)
 logger.info("Stdout logger intialized")
 
 err_logger = logging.getLogger('STDERR')
-errHandler = logging.FileHandler(os.path.join(os.path.dirname(__file__), 'logs', "ERR_" + get_current_date() + ".txt"), mode='a', encoding='utf-8')
+errHandler = logging.FileHandler(os.path.join(os.path.dirname(__file__), 'logs', 'ERR_' + datetime_str + '.txt'), mode='a', encoding='utf-8')
 errHandler.setFormatter(logging.Formatter(LOG_FORMAT))
 
 err_logger.addHandler(errHandler)
