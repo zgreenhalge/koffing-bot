@@ -88,7 +88,7 @@ def get_current_date():
 
 logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 log_dir = os.path.join(os.path.dirname(__file__), 'logs')
-err_dir = os.path.join(os.path.dirname(__file__), 'logs', "ERR_" + get_current_date() + ".txt")
+err_dir = os.path.join(os.path.dirname(__file__), 'logs')
 
 if not os.path.exits(log_dir):
 	os.makedirs(log_dir)
