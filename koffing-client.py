@@ -172,8 +172,8 @@ def on_ready():
 		for guild in client.guilds:
 			logger.info('%s (%s)', guild.name, guild.id)
 
-	new_game = discord.Game(name=game_str)
-	yield from client.change_presence(game=new_game)
+	new_game = discord.Game(game_str)
+	yield from client.change_presence(activity=new_game)
 
 	for guild in client.guilds:
 		if guild.id in guild:
