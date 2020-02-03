@@ -175,7 +175,7 @@ def on_ready():
 	new_game = discord.Game(name=game_str)
 	yield from client.change_presence(game=new_game)
 
-	for guild in client.guild:
+	for guild in client.guilds:
 		if guild.id in guild:
 			for channel in guild.channels:
 				if channel.type==discord.ChannelType.text and can_message(guild, channel) and enabled['greeting']:
