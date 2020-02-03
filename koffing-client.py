@@ -17,16 +17,16 @@ def open_file(path, array):
 	Return content of the file, or an empty array/map
 	'''
 	content = ''
-	if os.path.isfile(path):
-		content = open(path)
-	elif os.path.exists(path):
-		raise FileNotFoundError('{} does not exist as a file'.format(path))
-	else:
+	if not os.path.exists(path):
 		if array:
-			content = '[]'
+			content = []
 		else:
-			content = '\\{\\}'
-	return content
+			content = {}
+		save_file(path, content)
+	elif not os.path.isfile(path):
+		raise FileNotFoundError('{} does not exist as a file'.format(path))
+		
+	return open(path)
 
 def turn_file_to_json(path, is_array):
 	with (open_file(path, is_array)) as json_file:
