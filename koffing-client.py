@@ -83,10 +83,12 @@ class ErrStreamToLogger(object):
 		self.linebuf = ''
 
 	def write(self, buf):
-		final = ''
-		for line in buf.lstrip().rstrip().splitlines():
-			if line:
-				final = final + '\n' + line.lstrip() 
+		final = buf
+		if not buf.isspace():
+			final = ''
+			for line in buf.lstrip().rstrip().splitlines():
+				if line and not line.isspace():
+					final = final + '\n' + line.lstrip() 
 		self.logger.log(self.log_level, final.lstrip())
 
 datetime_str = datetime.fromtimestamp(time.time()).strftime(date_format)
