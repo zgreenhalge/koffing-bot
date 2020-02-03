@@ -12,6 +12,15 @@ from datetime import timedelta
 
 print("Welcome inside koffing's head")
 
+def save_file(path, obj):
+	'''
+	Save the given data to the given file
+	'''
+	file = open(path, 'w')
+	json_str = json.dumps(obj, sort_keys=True, indent=4)
+	file.write(json_str)
+	file.close()
+
 def open_file(path, array):
 	'''
 	Return content of the file, or an empty array/map
@@ -1160,15 +1169,6 @@ def save_skronk(silent=False):
 	if not silent:
 		logger.info('Saving skronk...')
 	save_file(SKRONK_FILE_PATH, skronks)
-
-def save_file(path, obj):
-	'''
-	Save the given data to the given file
-	'''
-	file = open(path, 'w')
-	json_str = json.dumps(obj, sort_keys=True, indent=4)
-	file.write(json_str)
-	file.close()
 
 @asyncio.coroutine                                       
 def exit():
