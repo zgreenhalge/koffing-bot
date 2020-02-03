@@ -20,13 +20,19 @@ def open_file(path, array):
 	if os.path.isfile(path):
 		content = open(path)
 	elif os.path.exists(path):
-		raise FileNotFoundError('{} does not exist'.format(path))
+		raise FileNotFoundError('{} does not exist as a file'.format(path))
 	else:
 		if array:
-			content = []
+			content = '[]'
 		else:
-			content = {}
+			content = '\\{\\}'
 	return content
+
+def turn_file_to_json(path, is_array):
+	with (open_file(path, is_array)) as json_file:
+		json_data = json.load(json_file)
+		return json_data
+
 
 if( len(sys.argv) < 2):
 	TOKEN = input('Please enter token: ')
@@ -80,8 +86,8 @@ class ErrStreamToLogger(object):
 		final = ''
 		for line in buf.lstrip().rstrip().splitlines():
 			if line:
-				final = final + '\n' + line 
-		self.logger.log(self.log_level, final)
+				final = final + '\n' + line.lstrip() 
+		self.logger.log(self.log_level, final.lstrip())
 
 datetime_str = datetime.fromtimestamp(time.time()).strftime(date_format)
 
@@ -114,11 +120,6 @@ err_logger.info('###############################################')
 #--------------------------------------------------------------------
 #Control lists
 logger.info("Loading settings...")
-
-def turn_file_to_json(path, is_array):
-	with (open_file(path, is_array)) as json_file:
-		json_data = json.load(json_file)
-		return json_data
 
 def load_settings():
 	global settings, enabled, votes, skronks, authorized_servers, authorized_channels, muted_channels, admin_users, game_str, SILENT_MODE, SAVE_TIMEOUT
