@@ -169,7 +169,7 @@ def on_ready():
 	logger.info('\n-----------------\nLogged in as %s - %s\n-----------------', client.user.name, client.user.id)
 	if dev==True:
 		logger.info('Member of the following guilds:')
-		for guild in client.guild:
+		for guild in client.guilds:
 			logger.info('%s (%s)', guild.name, guild.id)
 
 	new_game = discord.Game(name=game_str)
