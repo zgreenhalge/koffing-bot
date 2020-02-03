@@ -115,8 +115,8 @@ err_logger.info('###############################################')
 #Control lists
 logger.info("Loading settings...")
 
-def turn_file_to_json(path):
-	with (open_file(path)) as json_file:
+def turn_file_to_json(path, is_array):
+	with (open_file(path, is_array)) as json_file:
 		json_data = json.load(json_file)
 		return json_data
 
@@ -127,10 +127,10 @@ def load_settings():
 	if not os.path.exists(config_dir):
 		os.makedirs(config_dir)
 
-	settings = turn_file_to_json(CONFIG_FILE_PATH)
-	enabled = turn_file_to_json(FEATURE_FILE_PATH)
-	votes = turn_file_to_json(VOTE_FILE_PATH)
-	skronks = turn_file_to_json(SKRONK_FILE_PATH)
+	settings = turn_file_to_json(CONFIG_FILE_PATH, False)
+	enabled = turn_file_to_json(FEATURE_FILE_PATH, False)
+	votes = turn_file_to_json(VOTE_FILE_PATH, False)
+	skronks = turn_file_to_json(SKRONK_FILE_PATH, False)
 
 	authorized_servers = settings['authorized_servers']
 	authorized_channels = settings['authorized_channels']
