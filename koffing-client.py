@@ -176,7 +176,7 @@ def on_ready():
 	yield from client.change_presence(activity=new_game)
 
 	for guild in client.guilds:
-		if guild.id in guild:
+		if guild.id in authorized_guilds:
 			for channel in guild.channels:
 				if channel.type==discord.ChannelType.text and can_message(guild, channel) and enabled['greeting']:
 					logger.info('Alerting %s::%s to bot presence', guild.name, channel.id)
@@ -1040,7 +1040,7 @@ def authorized(guild, channel):
 	'''
 	True if the bot is authorized in this channel
 	'''
-	if guild.id in authorized_guild:
+	if guild.id in authorized_guilds:
 		return channel.id in authorized_channels[guild.id]
 	return False
 
