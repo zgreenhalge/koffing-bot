@@ -48,8 +48,8 @@ HELP = ('Koffing~~ I will listen to any trainer with enough badges!```'
 SKRONKED = "SKRONK'D"
 CONFIG_FILE_NAME = 'koffing.cfg'
 FEATURE_FILE_NAME = "feature_toggle.cfg"
-VOTE_FILE_NAME = 'vote_count'
-SKRONK_FILE_NAME = 'skronk'
+VOTE_FILE_NAME = 'vote_count.txt'
+SKRONK_FILE_NAME = 'skronk.txt'
 
 CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), 'config', CONFIG_FILE_NAME)
 FEATURE_FILE_PATH = os.path.join(os.path.dirname(__file__), 'config', FEATURE_FILE_NAME)
@@ -116,7 +116,7 @@ err_logger.info('###############################################')
 logger.info("Loading settings...")
 
 def turn_file_to_json(path):
-	with (open(path)) as json_file:
+	with (open_file(path)) as json_file:
 		json_data = json.load(json_file)
 		return json_data
 
