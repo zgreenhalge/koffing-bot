@@ -109,7 +109,7 @@ err_logger.addHandler(errHandler)
 sys.stderr = ErrStreamToLogger(err_logger)
 err_logger.info('###############################################')
 err_logger.info('#-----------------NEW SESSION-----------------#')
-err_logger.info('#------------------'+get_current_date()+'-----------------#')
+err_logger.info('#------------------'+datetime_str+'-----------------#')
 err_logger.info('###############################################')
 #--------------------------------------------------------------------
 #Control lists
