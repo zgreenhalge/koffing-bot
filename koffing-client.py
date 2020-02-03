@@ -90,10 +90,10 @@ logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 log_dir = os.path.join(os.path.dirname(__file__), 'logs')
 err_dir = os.path.join(os.path.dirname(__file__), 'logs')
 
-if not os.path.exits(log_dir):
+if not os.path.exists(log_dir):
 	os.makedirs(log_dir)
 
-if not os.path.exits(err_dir):
+if not os.path.exists(err_dir):
 	os.makedirs(err_dir)
 
 logHandler = logging.FileHandler(os.path.join(log_dir, "LOG_" + get_current_date() + ".txt"), mode='a', encoding='utf-8')
