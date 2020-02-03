@@ -84,7 +84,7 @@ class ErrStreamToLogger(object):
 		self.logger.log(self.log_level, final)
 
 def get_current_date():
-	datetime.fromtimestamp(time.time()).strftime(date_format)
+	datetime.fromtimestamp(time.time()).strftime(date_format) + ""
 
 logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 log_dir = os.path.join(os.path.dirname(__file__), 'logs')
