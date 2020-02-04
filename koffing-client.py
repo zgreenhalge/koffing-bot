@@ -738,15 +738,15 @@ def skronk(message):
 	# Okay, let's do the actual skronking
 	for member in skronked:
 		if member.id in skronks:
-			skronks[member.id] += 1
+			skronks[str(member.id)] += 1
 		else:
-			skronks[member.id] = 1
-		if member.id in skronk_times:
-			skronk_times[member.id] = int(skronk_times[member.id]) + int(skronk_timeout())
+			skronks[str(member.id)] = 1
+		if str(member.id) in skronk_times:
+			skronk_times[str(member.id)] = int(skronk_times[str(member.id)]) + int(skronk_timeout())
 		else:
-			skronk_times[member.id] = int(skronk_timeout())
+			skronk_times[str(member.id)] = int(skronk_timeout())
 			task_list.append(client.loop.create_task(remove_skronk(member, message)))
-		yield from member.add_roles( skronk)
+		yield from member.add_roles(skronk)
 		yield from respond(message, "{} got SKRONK'D!!!! ({}m left)".format(member.mention, str(get_skronk_time(member.id))))
 
 @asyncio.coroutine
@@ -759,10 +759,10 @@ def remove_skronk(member, message, silent=False, wait=True, absolute=False, user
 		yield from asyncio.sleep(int(skronk_timeout()))
 	logger.info('Attempting to deskronk {}'.format(get_discriminating_name(member)))
 
-	if member.id in skronk_times:
-		skronk_times[member.id] = int(skronk_times[member.id]) - int(skronk_timeout())
-		if int(skronk_times[member.id]) == 0 or absolute or user_clear:
-			del skronk_times[member.id]
+	if str(member.id) in skronk_times:
+		skronk_times[str(member.id)] = int(skronk_times[str(member.id)]) - int(skronk_timeout())
+		if int(skronk_times[str(member.id)]) == 0 or absolute or user_clear:
+			del skronk_times[str(member.id)]
 		else:
 			logger.info('Skronk has not yet expired!')
 			yield from respond(message, "Only {}m of shame left {}".format(str(get_skronk_time(member.id)), member.mention))
