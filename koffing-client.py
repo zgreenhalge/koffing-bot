@@ -601,7 +601,7 @@ def negative_reaction(message):
 		logger.info('Got a blank value for X emote, no reaction possible')
 	else:
 		logger.info('Reacting with a negative emoji')
-		yield from client.add_reaction(message, emoji)
+		yield from message.add_reaction(emoji)
 
 @asyncio.coroutine
 def positive_reaction(message):
@@ -613,7 +613,7 @@ def positive_reaction(message):
 		logger.info('Got a blank value for ok_hand emote, no reaction possible')
 	else:
 		logger.info('Reacting with a positive emoji')
-		yield from client.add_reaction(message, emoji)
+		yield from message.add_reaction(emoji)
 
 @asyncio.coroutine
 def koffing_reaction(message):
@@ -625,7 +625,7 @@ def koffing_reaction(message):
 		logger.info('Got a blank value for koffing emote, no reaction possible')
 	else:
 		logger.info('Reacting with a koffing emoji')
-		yield from client.add_reaction(message, emoji)
+		yield from message.add_reaction(emoji)
 
 @asyncio.coroutine
 def pin(message):
