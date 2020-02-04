@@ -101,7 +101,7 @@ class ErrStreamToLogger(object):
 
 datetime_str = datetime.fromtimestamp(time.time()).strftime(date_format)
 
-logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
+logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
 log_dir = os.path.join(os.path.dirname(__file__), 'logs')
 
 if not os.path.exists(log_dir):
@@ -1030,7 +1030,12 @@ def privileged(user):
 	'''
 	True if this user is a bot admin, False otherwise
 	'''
-	return get_discriminating_name(user) in admin_users
+	name = get_discriminating_name(user)
+	if name in admin_users:
+		return True
+	else:
+		logger.debug('{} is not in the bot admin list', name)
+		return False
 
 def get_discriminating_name(user):
 	'''
@@ -1043,7 +1048,12 @@ def authorized(guild, channel):
 	True if the bot is authorized in this channel
 	'''
 	if guild.id in authorized_guilds:
-		return channel.id in authorized_channels[guild.id]
+		if channel.id in authorized_channels[guild.id]
+			return True
+		else:
+			logger.debug('{} is not an authorized channel in {}', channel.id, guild.id)
+	else:
+		logger.debug('{} is not an authorized guild id', guild.id)
 	return False
 
 def muted(guild, channel):
