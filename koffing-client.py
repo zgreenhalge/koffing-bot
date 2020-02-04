@@ -189,7 +189,7 @@ def on_message(message):
 	'''
 	Fires when the client receieves a new message. Main starting point for message & command processing
 	'''
-	if None == message.channel or None == message.guild or not isinstance(message.channel, TextChannel):
+	if None == message.channel or None == message.guild or not isinstance(message.channel, discord.TextChannel):
 		yield from on_direct_message(message)
 		return
 
@@ -552,7 +552,7 @@ def respond(message, text, ignore_silent=False, emote="koffing"):
 	'''
 
 	#Make sure a DM didn't show up here somehow
-	if message.channel == None or not isinstance(message.channel, TextChannel):
+	if message.channel == None or not isinstance(message.channel, discord.TextChannel):
 		yield from direct_response(message, text)
 		return
 
