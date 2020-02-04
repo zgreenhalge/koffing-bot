@@ -746,7 +746,7 @@ def skronk(message):
 		else:
 			skronk_times[member.id] = int(skronk_timeout())
 			task_list.append(client.loop.create_task(remove_skronk(member, message)))
-		yield from client.add_roles(member, skronk)
+		yield from member.add_roles( skronk)
 		yield from respond(message, "{} got SKRONK'D!!!! ({}m left)".format(member.mention, str(get_skronk_time(member.id))))
 
 @asyncio.coroutine
@@ -771,7 +771,7 @@ def remove_skronk(member, message, silent=False, wait=True, absolute=False, user
 
 	skronk = get_skronk_role(message.guild)
 	if skronk != None and skronk in member.roles:
-		yield from client.remove_roles(member, skronk)
+		yield from member.remove_roles(skronk)
 		if not silent:
 			yield from respond(message, "You're out of skronk {}!".format(member.mention))
 
