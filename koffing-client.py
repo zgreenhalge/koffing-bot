@@ -418,21 +418,20 @@ def shutdown_message(message):
 			if channel.type==discord.ChannelType.text:
 				if can_message(guild, channel) and enabled['greeting']:
 					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
-					yield from channel.send_message('Koffing-bot is going back to its pokeball~!')
+					yield from channel.send('Koffing-bot is going back to its pokeball~!')
 				elif message.guild == None or message.channel == None:
 					continue
 				elif guild.id == message.guild.id and channel.id == message.channel.id:
 					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
-					yield from channel.send_message('Koffing-bot is going back to its pokeball~!')
+					yield from channel.send('Koffing-bot is going back to its pokeball~!')
 
 @asyncio.coroutine
 def check_for_koffing(message):
 	'''
 	Checks a message content for the word 'koffing' and gets excited if its there
 	'''
-	logger.info('Checking for koffing...')
 	if 'koffing' in message.content.lower() or client.user.mentioned_in(message):
-		logger.info('Found a koffing in the message!')
+		# logger.info('Found a koffing in the message!')
 
 		if can_message(message.guild, message.channel) and enabled["text_response"]:
 			# Quiet skip this, since that's the point of disabled text response
