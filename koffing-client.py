@@ -101,7 +101,7 @@ class ErrStreamToLogger(object):
 
 datetime_str = datetime.fromtimestamp(time.time()).strftime(date_format)
 
-logging.basicConfig(format=LOG_FORMAT, level=logging.DEBUG)
+logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 log_dir = os.path.join(os.path.dirname(__file__), 'logs')
 
 if not os.path.exists(log_dir):
@@ -189,7 +189,7 @@ def on_message(message):
 	'''
 	Fires when the client receieves a new message. Main starting point for message & command processing
 	'''
-	if None == message.channel or None == message.guild or not isinstance(message.channel, discord.TextChannel):
+	if None == message.channel or None == message.guild or not isinstance(message.channel, discord.abc.GuildChannel):
 		yield from on_direct_message(message)
 		return
 
@@ -430,9 +430,9 @@ def check_for_koffing(message):
 	'''
 	Checks a message content for the word 'koffing' and gets excited if its there
 	'''
-	logger.debug('Checking for koffing...')
+	logger.info('Checking for koffing...')
 	if 'koffing' in message.content.lower() or client.user.mentioned_in(message):
-		logger.debug('Found a koffing in the message!')
+		logger.info('Found a koffing in the message!')
 
 		if can_message(message.guild, message.channel) and enabled["text_response"]:
 			# Quiet skip this, since that's the point of disabled text response
@@ -448,7 +448,7 @@ def check_for_koffing(message):
 		return #RETURN HERE TO STOP VOICE FROM HAPPENING BEFORE IT WORKS
 		# need to figure out ffmpeg before this will work
 		if message.author.voice_channel != None and enabled["voice_response"]:
-			logger.debug('Attempting to play in voice channel %s', message.author.voice_channel.id)
+			logger.info('Attempting to play in voice channel %s', message.author.voice_channel.id)
 			voice = voice_client_int(message.guild)
 			if voice == None or voice.channel != message.author.voice_channel:
 				voice = yield from client.join_voice_channel(message.author.voice_channel)
@@ -552,7 +552,7 @@ def respond(message, text, ignore_silent=False, emote="koffing"):
 	'''
 
 	#Make sure a DM didn't show up here somehow
-	if message.channel == None or not isinstance(message.channel, discord.TextChannel):
+	if message.channel == None or not isinstance(message.channel, discord.abc.GuildChannel):
 		yield from direct_response(message, text)
 		return
 
@@ -574,7 +574,7 @@ def respond(message, text, ignore_silent=False, emote="koffing"):
 		if not muted(message.guild, message.channel):
 			logger.info('Responding to "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.guild.name, message.channel.id)
 			if SILENT_MODE:
-				logger.debug('Loud response requested!')
+				logger.info('Loud response requested!')
 			yield from message.channel.send(text)
 
 @asyncio.coroutine
@@ -1034,7 +1034,7 @@ def privileged(user):
 	if name in admin_users:
 		return True
 	else:
-		logger.debug('{} is not in the bot admin list', name)
+		logger.info('{} is not in the bot admin list', name)
 		return False
 
 def get_discriminating_name(user):
@@ -1051,9 +1051,11 @@ def authorized(guild, channel):
 		if channel.id in authorized_channels[guild.id]:
 			return True
 		else:
-			logger.debug('{} is not an authorized channel in {}', channel.id, guild.id)
+			logger.info('{} is not an authorized channel in {}', channel.id, guild.id)
+			logger.info(authorized_channels)
 	else:
-		logger.debug('{} is not an authorized guild id', guild.id)
+		logger.info('{} is not an authorized guild id', guild.id)
+		logger.info(authorized_guilds)
 	return False
 
 def muted(guild, channel):
@@ -1094,6 +1096,7 @@ def generate_koffing(guild):
 	'''
 	Returns a string of a happy koffing
 	'''
+	logger.info('  Generating koffing string...')
 	koffing_emoji = get_koffing_emoji(guild)
 	koffing_str = None
 	response = None
@@ -1118,11 +1121,13 @@ def get_koffing_emoji(guild):
 	'''
 	return_emoji = ''
 	if guild == None:
+		logger.info('  No guild information to find koffing!')
 		return return_emoji
 
 	for emoji in guild.emojis:
 		if emoji.name == 'koffing':
 			return_emoji = emoji
+	logger.info('  Using {} for our koffing emote', return_emoji)
 	return return_emoji
 
 def get_ok_emoji(guild):
