@@ -1052,8 +1052,10 @@ def authorized(guild, channel):
 			return True
 		else:
 			# logger.info('%s is not an authorized channel in %s', channel.id, guild.id)
+			pass
 	else:
 		# logger.info('%s is not an authorized guild id', guild.id)
+		pass
 	return False
 
 def muted(guild, channel):
