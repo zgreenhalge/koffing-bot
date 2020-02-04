@@ -230,7 +230,7 @@ def on_message(message):
 		else:
 			# check vote timeout & reset if needed
 			content = content.replace(cmd_prefix + 'vote', '', 1).lstrip().rstrip()
-			if content.startswith('leaderboard') or content.startswith('boards') or content.startswith('leaders'):
+			if content.startswith('leaderboard') or content.startswith('boards') or content.startswith('leaders') or content.startswith('results'):
 				yield from respond(message, get_vote_leaderboards(guild, author), True)
 			elif content.startswith('history'):
 				yield from respond(message, get_vote_history(guild, author), True)
@@ -310,7 +310,7 @@ def admin_console(message, content):
 	elif content.startswith('admin'):
 		content = content.replace('admin', '', 1).lstrip().rstrip()
 		if content.startswith('list'):
-			yield from respond(message, get_admin_list(guild))
+			yield from respond(message, get_admin_list(guild), ignore_silent=True)
 		elif (content.startswith('rm') or content.startswith('remove')):
 			yield from remove_admin(message)
 		elif content.startswith('add'):
@@ -939,7 +939,7 @@ def get_vote_leaderboards(guild, requester, call_out=True):
 	else:
 		leader_str = "{} is in the lead!".format(leaders[0].mention)
 
-	leaderboard_str = '\n \nLeaderboard for week of {}\n{}\nVotes close on {}```'.format(start, leader_str, date_to_string(string_to_date(start) + timedelta(7)))
+	leaderboard_str = '\n \nLeaderboard for week of {}\n{}```'.format(start, leader_str)
 	for tup in sorted_ch_lead:
 		leaderboard_str += '{}: {}'.format(get_user_name(tup[0]), tup[1])
 		if requester.name == tup[0].name and call_out:
