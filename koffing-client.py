@@ -1048,7 +1048,7 @@ def authorized(guild, channel):
 	True if the bot is authorized in this channel
 	'''
 	if guild.id in authorized_guilds:
-		if channel.id in authorized_channels[guild.id]
+		if channel.id in authorized_channels[guild.id]:
 			return True
 		else:
 			logger.debug('{} is not an authorized channel in {}', channel.id, guild.id)
