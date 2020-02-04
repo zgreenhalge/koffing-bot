@@ -96,8 +96,8 @@ class ErrStreamToLogger(object):
 		if not buf.isspace():
 			for line in buf.lstrip().rstrip().splitlines():
 				if line and not line.isspace():
-					final = final + '\n' + line.lstrip() 
-		self.logger.log(self.log_level, final.lstrip())
+					final = final + '\n' + line
+		self.logger.log(self.log_level, final)
 
 datetime_str = datetime.fromtimestamp(time.time()).strftime(date_format)
 
@@ -170,7 +170,7 @@ def on_ready():
 	if dev==True:
 		logger.info('Member of the following guilds:')
 		for guild in client.guilds:
-			logger.info('%s (%s)', guild.name, guild.id)
+			logger.info('  %s (%s)', guild.name, guild.id)
 
 	new_game = discord.Game(game_str)
 	yield from client.change_presence(activity=new_game)
@@ -189,13 +189,13 @@ def on_message(message):
 	'''
 	Fires when the client receieves a new message. Main starting point for message & command processing
 	'''
-	if None == message.channel or None == message.guild:
+	if None == message.channel or None == message.guild or not isinstance(message.channel, TextChannel):
 		yield from on_direct_message(message)
 		return
 
 	logger.info('Received message from "%s" (%s) in %s::%s', message.author.name, get_discriminating_name(message.author), message.guild.name, message.channel.name)
 	if not authorized(message.guild, message.channel):
-		logger.debug('Channel is unauthorized - not processing')
+		logger.info('Channel is unauthorized - not processing')
 		return
 
 	global game_str, SILENT_MODE, restart
@@ -437,13 +437,13 @@ def check_for_koffing(message):
 		if can_message(message.guild, message.channel) and enabled["text_response"]:
 			# Quiet skip this, since that's the point of disabled text response
 			if not SILENT_MODE:
-				yield from client.send_typing(message.channel)
+				yield from message.channel.typing()
 
 			response, emoji = generate_koffing(message.guild)
 			asyncio.sleep(randint(0,1))
 			yield from respond(message, response)
 			if(emoji != None and not SILENT_MODE):
-				yield from client.add_reaction(message, emoji)
+				yield from message.add_reaction(emoji)
 
 		return #RETURN HERE TO STOP VOICE FROM HAPPENING BEFORE IT WORKS
 		# need to figure out ffmpeg before this will work
@@ -552,7 +552,7 @@ def respond(message, text, ignore_silent=False, emote="koffing"):
 	'''
 
 	#Make sure a DM didn't show up here somehow
-	if message.channel == None:
+	if message.channel == None or not isinstance(message.channel, TextChannel):
 		yield from direct_response(message, text)
 		return
 
@@ -575,7 +575,7 @@ def respond(message, text, ignore_silent=False, emote="koffing"):
 			logger.info('Responding to "%s" (%s) in %s::%s', message.author.display_name, get_discriminating_name(message.author), message.guild.name, message.channel.id)
 			if SILENT_MODE:
 				logger.debug('Loud response requested!')
-			yield from client.send_message(message.channel, text)
+			yield from message.channel.send(text)
 
 @asyncio.coroutine
 def direct_response(message, text):
@@ -584,9 +584,11 @@ def direct_response(message, text):
 	'''
 	logger.info('Responding to DM from %s', get_discriminating_name(message.author))
 	if(text == ''):
-		yield from client.send_message(message.author, ':eyes:')
+		yield from message.channel.send(':eyes:')
+		# yield from client.send_message(message.author, ':eyes:')
 	else:
-		yield from client.send_message(message.author, text)
+		yield from message.channel.send(text)
+		# yield from client.send_message(message.author, text)
 	return
 
 @asyncio.coroutine
