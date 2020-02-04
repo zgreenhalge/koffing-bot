@@ -1047,23 +1047,21 @@ def authorized(guild, channel):
 	'''
 	True if the bot is authorized in this channel
 	'''
-	if guild.id in authorized_guilds:
-		if channel.id in authorized_channels[guild.id]:
+	if guild.id + '' in authorized_guilds:
+		if channel.id + '' in authorized_channels[guild.id + '']:
 			return True
 		else:
 			logger.info('%s is not an authorized channel in %s', channel.id, guild.id)
-			logger.info(authorized_channels)
 	else:
 		logger.info('%s is not an authorized guild id', guild.id)
-		logger.info(authorized_guilds)
 	return False
 
 def muted(guild, channel):
 	'''
 	True if the bot is muted in this channel
 	'''
-	if guild.id in muted_channels:
-		return channel.id in muted_channels[guild.id]
+	if guild.id + '' in muted_channels:
+		return channel.id + '' in muted_channels[guild.id + '']
 	return False
 
 def mute(guild, channel):
@@ -1071,20 +1069,20 @@ def mute(guild, channel):
 	Adds the channel to the muted list
 	'''
 	logger.info('Muting channel {}::{}...', guild.name, channel.name)
-	if guild.id in muted_channels:
-		if channel.id not in muted_channels[guild.id]:
-			muted_channels[guild.id].append(channel.id)
+	if guild.id + '' in muted_channels:
+		if channel.id + '' not in muted_channels[guild.id + '']:
+			muted_channels[guild.id + ''].append(channel.id + '')
 	else:
-		muted_channels[guild.id] = [channel.id]
+		muted_channels[guild.id + ''] = [channel.id + '']
 
 def unmute(guild, channel):
 	'''
 	Removes the channel from the muted list
 	'''
 	logger.info('Unmuting channel {}::{}...', guild.name, channel.name)
-	if guild.id in muted_channels:
-		if channel.id in muted_channels[guild.id]:
-			muted_channels[guild.id].remove(channel.id)
+	if guild.id + '' in muted_channels:
+		if channel.id + '' in muted_channels[guild.id + '']:
+			muted_channels[guild.id + ''].remove(channel.id + '')
 
 def get_date():
 	'''
