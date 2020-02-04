@@ -1034,7 +1034,7 @@ def privileged(user):
 	if name in admin_users:
 		return True
 	else:
-		logger.info('{} is not in the bot admin list', name)
+		logger.info('%s is not in the bot admin list', name)
 		return False
 
 def get_discriminating_name(user):
@@ -1051,10 +1051,10 @@ def authorized(guild, channel):
 		if channel.id in authorized_channels[guild.id]:
 			return True
 		else:
-			logger.info('{} is not an authorized channel in {}', channel.id, guild.id)
+			logger.info('%s is not an authorized channel in %s', channel.id, guild.id)
 			logger.info(authorized_channels)
 	else:
-		logger.info('{} is not an authorized guild id', guild.id)
+		logger.info('%s is not an authorized guild id', guild.id)
 		logger.info(authorized_guilds)
 	return False
 
