@@ -413,17 +413,17 @@ def shutdown_message(message):
 	'''
 	Saves state and then alerts all channels that it is shutting down
 	'''
-	for guild in client.guild:
+	for guild in client.guilds:
 		for channel in guild.channels:
 			if channel.type==discord.ChannelType.text:
 				if can_message(guild, channel) and enabled['greeting']:
 					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
-					yield from client.send_message(channel, 'Koffing-bot is going back to its pokeball~!')
+					yield from channel.send_message('Koffing-bot is going back to its pokeball~!')
 				elif message.guild == None or message.channel == None:
 					continue
 				elif guild.id == message.guild.id and channel.id == message.channel.id:
 					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
-					yield from client.send_message(channel, 'Koffing-bot is going back to its pokeball~!')
+					yield from channel.send_message('Koffing-bot is going back to its pokeball~!')
 
 @asyncio.coroutine
 def check_for_koffing(message):
@@ -1125,7 +1125,7 @@ def get_koffing_emoji(guild):
 	for emoji in guild.emojis:
 		if emoji.name == 'koffing':
 			return_emoji = emoji
-	logger.info('  Using {} for our koffing emote', return_emoji)
+	logger.info('  Using %s for our koffing emote', return_emoji)
 	return return_emoji
 
 def get_ok_emoji(guild):
