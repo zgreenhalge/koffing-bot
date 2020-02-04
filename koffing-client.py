@@ -108,7 +108,7 @@ if not os.path.exists(log_dir):
 	os.makedirs(log_dir)
 
 logHandler = logging.FileHandler(os.path.join(os.path.dirname(__file__), 'logs', 'LOG_' + datetime_str + '.txt'), mode='a', encoding='utf-8')
-logHandler.setLevel(logging.DEBUG)
+logHandler.setLevel(logging.INFO)
 logHandler.setFormatter(logging.Formatter(LOG_FORMAT))
 
 logger = logging.getLogger(__name__)
