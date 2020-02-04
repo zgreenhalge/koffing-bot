@@ -294,6 +294,7 @@ def admin_console(message, content):
 	-Manually save state
 	-Shut down bot
 	'''
+	global SILENT_MODE
 	guild = message.guild
 	channel = message.channel
 	author = message.author
@@ -1050,9 +1051,9 @@ def authorized(guild, channel):
 		if str(channel.id) in authorized_channels[str(guild.id)]:
 			return True
 		else:
-			logger.info('%s is not an authorized channel in %s', channel.id, guild.id)
+			# logger.info('%s is not an authorized channel in %s', channel.id, guild.id)
 	else:
-		logger.info('%s is not an authorized guild id', guild.id)
+		# logger.info('%s is not an authorized guild id', guild.id)
 	return False
 
 def muted(guild, channel):
