@@ -195,7 +195,7 @@ def on_message(message):
 
 	logger.info('Received message from "%s" (%s) in %s::%s', message.author.name, get_discriminating_name(message.author), message.guild.name, message.channel.name)
 	if not authorized(message.guild, message.channel):
-		logger.info('Channel is unauthorized - not processing')
+		# logger.info('  Channel is unauthorized - not processing')
 		return
 
 	global game_str, SILENT_MODE, restart
