@@ -580,14 +580,19 @@ def respond(message, text, ignore_silent=False, emote="koffing"):
 @asyncio.coroutine
 def direct_response(message, text):
 	'''
-	Reply directly to a DM
+	Reply directly to a user
 	'''
+	channel = message.author.dm_channel
+	if channel == None:
+		yield from message.author.create_dm()
+		channel = message.author.dm_channel
+
 	logger.info('Responding to DM from %s', get_discriminating_name(message.author))
 	if(text == ''):
-		yield from message.channel.send(':eyes:')
+		yield from channel.send(':eyes:')
 		# yield from client.send_message(message.author, ':eyes:')
 	else:
-		yield from message.channel.send(text)
+		yield from channel.send(text)
 		# yield from client.send_message(message.author, text)
 	return
 
