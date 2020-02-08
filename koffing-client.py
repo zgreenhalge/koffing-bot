@@ -374,6 +374,12 @@ def admin_console(message, content):
 		yield from shutdown_message(message)
 		ask_exit()
 
+	elif content.startswith('restart'):
+		restart = True
+		save_all()
+		yield from shutdown_message(message)
+		ask_restart()
+	
 	# Unrecognized command
 	else:
 		logger.info('Unknown command attempt from %s: [%s]', get_discriminating_name(author), (message.content + '.')[:-1].lower())
@@ -1191,6 +1197,20 @@ def save_skronk(silent=False):
 		logger.info('Saving skronk...')
 	save_file(SKRONK_FILE_PATH, skronks)
 
+def restart():
+	'''
+	Stop all tasks we have spawned before shutting down with return code 0. 
+	This signals koffing-ball.py that we should update & restart.
+	'''
+	
+	logger.info('Stopping client and restarting...')
+	logger.info('Stopping tasks...')
+	global task_list
+	for task in task_list:
+		task.cancel()
+	asyncio.ensure_future(exit())
+	sys.exit(0) 
+	
 @asyncio.coroutine                                       
 def exit():
 	'''
@@ -1201,13 +1221,15 @@ def exit():
 
 def ask_exit():
 	'''
-	Stop all tasks we have spawned before shutting down
+	Stop all tasks we have spawned before shutting down with return code 1. 
+	This signals koffing-ball.py that we should stop the run loop.
 	'''
 	logger.info('Stopping tasks...')
 	global task_list
 	for task in task_list:
 		task.cancel()
 	asyncio.ensure_future(exit())
+	sys.exit(1) #return code > 0 means don't restart
 
 '''
 Bring koffing to life! Bring him to liiiiiife!!!!
