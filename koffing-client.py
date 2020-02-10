@@ -7,7 +7,7 @@ import json
 import operator
 import os
 from random import randint
-from datetime import datetime
+from datetime import datetime, timezone
 from datetime import timedelta
 
 print("Welcome inside koffing's head")
