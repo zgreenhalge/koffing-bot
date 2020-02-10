@@ -1211,7 +1211,7 @@ def ask_restart():
 	global task_list
 	for task in task_list:
 		task.cancel()
-	exit()
+	asyncio.ensure_future(exit())
 	
 	logger.info('Restarting...')
 	sys.exit(0) 
