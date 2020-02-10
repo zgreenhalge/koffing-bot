@@ -2,7 +2,7 @@ import sys
 import os
 
 def start_koffing():
-  return os.system("./launchKoffingBot.sh")
+  return os.system("./launchKoffing.sh")
 
 ret_code = start_koffing()
 while ret_code == 0:
