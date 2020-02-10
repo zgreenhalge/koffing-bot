@@ -78,7 +78,7 @@ dev = True
 date_format = '%Y-%m-%d'
 pretty_date_format = '%a %b %Y %I:%M:%S %p'
 cmd_prefix = '!'
-est_tz=pytz.timezone('America/NewYork')
+est_tz = pytz.timezone('US/Eastern')
 #--------------------------------------------------------------------
 #Logging set up
 print("Setting up loggers...")
