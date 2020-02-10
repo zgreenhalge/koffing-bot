@@ -98,7 +98,7 @@ class ErrStreamToLogger(object):
 					final = final + '\n' + line
 		self.logger.log(self.log_level, final)
 
-datetime_str = datetime.now(datetime.timezone.est).strftime(date_format)
+datetime_str = datetime.now(timezone.est).strftime(date_format)
 
 logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 log_dir = os.path.join(os.path.dirname(__file__), 'logs')
