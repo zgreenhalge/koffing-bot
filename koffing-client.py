@@ -6,8 +6,9 @@ import logging
 import json
 import operator
 import os
+import pytz
 from random import randint
-from datetime import datetime, timezone
+from datetime import datetime
 from datetime import timedelta
 
 print("Welcome inside koffing's head")
@@ -77,6 +78,7 @@ dev = True
 date_format = '%Y-%m-%d'
 pretty_date_format = '%a %b %Y %I:%M:%S %p'
 cmd_prefix = '!'
+est_tz=pytz.timezone('America/NewYork')
 #--------------------------------------------------------------------
 #Logging set up
 print("Setting up loggers...")
@@ -98,7 +100,7 @@ class ErrStreamToLogger(object):
 					final = final + '\n' + line
 		self.logger.log(self.log_level, final)
 
-datetime_str = datetime.now(timezone('EST')).strftime(date_format)
+datetime_str = datetime.now(tz=est_tz).strftime(date_format)
 
 logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 log_dir = os.path.join(os.path.dirname(__file__), 'logs')
@@ -463,6 +465,8 @@ def remind_me(message):
 	'''
 	Basic remindme functionality, works for seconds or minutes
 	'''
+	global est_tz
+
 	logger.info('Generating reminder for %s...', get_discriminating_name(message.author))
 	contents = message.content.split(maxsplit=2)
 	#['/remindme', 'time', 'message']
@@ -483,7 +487,7 @@ def remind_me(message):
 			yield from respond(message, "Skronk!", emote="x")
 			return
 
-	wakeup = (datetime.now() + timedelta(seconds=int(float(time)))).strftime(pretty_date_format)
+	wakeup = (datetime.now(tz=est_tz) + timedelta(seconds=int(float(time)))).strftime(pretty_date_format)
 	logger.info('Reminder for %s in %s seconds (%s)', get_discriminating_name(message.author), time, wakeup)
 	# Respond based on the length of time to wait
 	yield from direct_response(message, "Alright, reminding you at {}".format(wakeup))
@@ -656,6 +660,7 @@ def place_vote(message):
 	'''
 	Adds a vote for @member or @role or @everyone
 	'''
+	global est_tz
 	logger.info('Tallying votes...')
 
 	if len(message.mentions) == 0 and len(message.role_mentions) == 0 and not message.mention_everyone:
@@ -677,7 +682,7 @@ def place_vote(message):
 		cur_votes, start_time = get_current_votes()
 		if cur_votes == None:
 			cur_votes = {name: 1}
-			votes[date_to_string(datetime.now().date())] = cur_votes
+			votes[date_to_string(datetime.now(tz=est_tz).date())] = cur_votes
 		else:
 			if name in cur_votes:
 				cur_votes[name] = cur_votes[name] + 1
@@ -1010,7 +1015,8 @@ def get_current_votes():
 	'''
 	Get the votes map for the current session
 	'''
-	now = datetime.now().date()
+	global est_tz
+	now = datetime.now(tz=est_tz).date()
 	for start in votes:
 		if(now - string_to_date(start) < timedelta(7)):
 			return votes[start], start
@@ -1098,7 +1104,8 @@ def get_date():
 	'''
 	Returns a string of the current date in mm-dd-YYYY
 	'''
-	return datetime.fromtimestamp(time.time()).strftime('%m-%d-%Y')
+	global est_tz
+	return datetime.now(tz=est_tz).strftime('%m-%d-%Y')
 
 def generate_koffing(guild):
 	'''
