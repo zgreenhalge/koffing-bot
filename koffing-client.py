@@ -198,7 +198,7 @@ def on_message(message):
 		# logger.info('  Channel is unauthorized - not processing')
 		return
 
-	global game_str, SILENT_MODE, restart
+	global game_str, SILENT_MODE
 	guild = message.guild
 	channel = message.channel
 	content = (message.content + '.')[:-1].lower()
@@ -369,13 +369,11 @@ def admin_console(message, content):
 
 	# Kill bot
 	elif content.startswith('return') or content.startswith('shutdown'):
-		restart = False
 		save_all()
 		yield from shutdown_message(message)
 		ask_exit()
 
 	elif content.startswith('restart'):
-		restart = True
 		save_all()
 		yield from shutdown_message(message)
 		ask_restart()
@@ -1197,18 +1195,19 @@ def save_skronk(silent=False):
 		logger.info('Saving skronk...')
 	save_file(SKRONK_FILE_PATH, skronks)
 
-def restart():
+def ask_restart():
 	'''
 	Stop all tasks we have spawned before shutting down with return code 0. 
 	This signals koffing-ball.py that we should update & restart.
 	'''
 	
-	logger.info('Stopping client and restarting...')
 	logger.info('Stopping tasks...')
 	global task_list
 	for task in task_list:
 		task.cancel()
 	asyncio.ensure_future(exit())
+	
+	logger.info('Restarting...')
 	sys.exit(0) 
 	
 @asyncio.coroutine                                       
@@ -1229,6 +1228,8 @@ def ask_exit():
 	for task in task_list:
 		task.cancel()
 	asyncio.ensure_future(exit())
+
+	logger.info('Stopping...')
 	sys.exit(1) #return code > 0 means don't restart
 
 '''
