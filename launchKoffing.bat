@@ -1,2 +1,0 @@
-python koffing-client.py MjU2MjIyMjU4NjQ3OTI0NzM3.C3bBuQ.OOObu9AYRVqj0ayqwOk5ocLmakE
-PAUSE
