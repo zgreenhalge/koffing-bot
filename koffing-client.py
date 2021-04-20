@@ -39,7 +39,7 @@ koffings = dict()
 oks = dict()
 dev = True
 date_format = '%Y-%m-%d'
-pretty_date_format = '%a %b %Y %I:%M:%S %p'
+pretty_date_format = '%a %b %d %Y %I:%M:%S %p'
 cmd_prefix = '!'
 est_tz = pytz.timezone('US/Eastern')
 # --------------------------------------------------------------------
@@ -192,7 +192,7 @@ async def on_message(message):
 					'leaders') or content.startswith('results'):
 				await respond(message, get_vote_leaderboards(guild, author), True)
 			elif content.startswith('history'):
-				await respond(message, get_vote_history(guild, author), True)
+				await respond(message, get_vote_history(guild), True)
 			else:
 				await place_vote(message)
 
@@ -791,7 +791,7 @@ def get_vote_leaderboards(guild, requester, call_out=True):
 	guild_leaders = []
 	cur_votes, start = get_current_votes()
 	if cur_votes is None:
-		return 'No one in {} has recieved any votes!'.format(guild.name)
+		return 'No one in {} has received any votes!'.format(guild.name)
 
 	for user_name in cur_votes:
 		member = guild.get_member_named(user_name)
@@ -799,13 +799,12 @@ def get_vote_leaderboards(guild, requester, call_out=True):
 			guild_leaders.append((member, cur_votes[user_name]))
 
 	if len(guild_leaders) == 0:
-		return 'No one in {} has recieved any votes!'.format(guild.name)
+		return 'No one in {} has received any votes!'.format(guild.name)
 
 	sorted_ch_lead = sorted(guild_leaders, key=lambda tup_temp: tup_temp[1], reverse=True)
 
 	leaders = []
 	idx = 0
-	username = get_discriminating_name(sorted_ch_lead[idx][0])
 	score = sorted_ch_lead[idx][1]
 	top_score = score
 
@@ -815,7 +814,6 @@ def get_vote_leaderboards(guild, requester, call_out=True):
 			leaders.append(member)
 		idx = idx + 1
 		if len(sorted_ch_lead) > idx:
-			username = get_discriminating_name(sorted_ch_lead[idx][0])
 			score = sorted_ch_lead[idx][1]
 		else:
 			score = -1
@@ -830,7 +828,7 @@ def get_vote_leaderboards(guild, requester, call_out=True):
 	else:
 		leader_str = "{} is in the lead!".format(leaders[0].mention)
 
-	leaderboard_str = '\n \nLeaderboard for week of {}\n{}```'.format(start, leader_str)
+	leaderboard_str = '\n \nLeaderboard for the week starting on {}:\n\n{}```'.format(start[0:-12], leader_str)
 	for tup in sorted_ch_lead:
 		leaderboard_str += '{}: {}'.format(get_user_name(tup[0]), tup[1])
 		if requester.name == tup[0].name and call_out:
@@ -841,7 +839,7 @@ def get_vote_leaderboards(guild, requester, call_out=True):
 	return leaderboard_str
 
 
-def get_vote_history(guild, requestor):
+def get_vote_history(guild):
 	"""
 	Returns a string of all the winners of each recorded voting session
 	"""

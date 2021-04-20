@@ -30,6 +30,9 @@ def open_file(path, array):
 
 
 def turn_file_to_json(path, is_array):
+	if not os.path.exists(path):
+		return '{}'  # Return empty JSON if the file DNE
+
 	with (open_file(path, is_array)) as json_file:
 		json_data = json.load(json_file)
 		return json_data
