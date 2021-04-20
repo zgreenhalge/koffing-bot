@@ -1,12 +1,10 @@
 import asyncio
 import logging
-import os
 import sys
 from datetime import datetime
 from datetime import timedelta
 from random import randint
 
-import discord
 import pytz
 from discord import NotFound, Forbidden
 
@@ -36,15 +34,6 @@ HELP = ('Koffing~~ I will listen to any trainer with enough badges!```'
 		)
 
 SKRONKED = "SKRONK'D"
-CONFIG_FILE_NAME = 'koffing.cfg'
-FEATURE_FILE_NAME = "feature_toggle.cfg"
-VOTE_FILE_NAME = 'vote_count.txt'
-SKRONK_FILE_NAME = 'skronk.txt'
-
-CONFIG_FILE_PATH = os.path.join(os.path.dirname(__file__), 'config', CONFIG_FILE_NAME)
-FEATURE_FILE_PATH = os.path.join(os.path.dirname(__file__), 'config', FEATURE_FILE_NAME)
-VOTE_FILE_PATH = os.path.join(os.path.dirname(__file__), 'config', VOTE_FILE_NAME)
-SKRONK_FILE_PATH = os.path.join(os.path.dirname(__file__), 'config', SKRONK_FILE_NAME)
 
 koffings = dict()
 oks = dict()
@@ -95,6 +84,9 @@ logHandler.setFormatter(logging.Formatter(LOG_FORMAT))
 logger = logging.getLogger(__name__)
 logger.addHandler(logHandler)
 
+util.UserUtils.logger = logger
+util.FileUtils.logger = logger
+util.ChannelUtils.logger = logger
 util.MessagingUtils.logger = logger
 
 logger.info("Stdout logger intialized")
@@ -143,7 +135,7 @@ async def on_ready():
 	for guild in client.guilds:
 		if guild.id in Settings.authorized_guilds:
 			for channel in guild.channels:
-				if channel.type == discord.ChannelType.text and can_message(guild, channel) and Settings.enabled['greeting']:
+				if channel.type == discord.ChannelType.text and ChannelUtils.can_message(guild, channel) and Settings.enabled['greeting']:
 					logger.info('Alerting %s::%s to bot presence', guild.name, channel.id)
 					await client.send_message(channel, START_MESSAGES[randint(0, len(START_MESSAGES) - 1)])
 	logger.info('Koffing-bot is up and running!')
@@ -160,7 +152,7 @@ async def on_message(message):
 
 	logger.info('Received message from "%s" (%s) in %s::%s', get_preferred_name(message.author),
 				get_discriminating_name(message.author), message.guild.name, message.channel.name)
-	if not authorized(message.guild, message.channel):
+	if not ChannelUtils.authorized(message.guild, message.channel):
 		# logger.info('  Channel is unauthorized - not processing')
 		return
 
@@ -216,7 +208,7 @@ async def on_message(message):
 				return
 			content = content.replace('timeout', '', 1).lstrip().rstrip()
 			if content.isdigit():
-				old = skronk_timeout()
+				old = Settings.Settings.skronk_timeout()
 				Settings.settings['skronk_timeout'] = content
 				await respond(message, 'Skronk timeout changed from {}s to {}s'.format(old, content))
 			else:
@@ -277,19 +269,19 @@ async def admin_console(message, content):
 			await respond(message, 'Mute is not enabled', emote="x")
 		else:
 			await respond(message, "Koffing...")
-			mute(guild, channel)
+			ChannelUtils.mute(guild, channel)
 
 	# Unmute control. Gets koffing to listen to a channel again
 	elif content.startswith('unmute'):
 		if not Settings.enabled["mute"]:
 			await respond(message, 'Mute is not enabled', emote="x")
 		else:
-			if muted(guild, channel):
+			if ChannelUtils.muted(guild, channel):
 				response, emoji = generate_koffing(guild)
 				logger.info('Responding to "%s" (%s) in %s::%s', author.display_name, get_discriminating_name(author),
 							guild.name, channel.id)
 				await respond(message, response)
-			unmute(guild, channel)
+			ChannelUtils.unmute(guild, channel)
 
 	# Game display
 	elif content.startswith('game') or content.startswith('play'):
@@ -372,7 +364,7 @@ async def shutdown_message(message):
 	for guild in client.guilds:
 		for channel in guild.channels:
 			if channel.type == discord.ChannelType.text:
-				if can_message(guild, channel) and Settings.enabled['greeting']:
+				if ChannelUtils.can_message(guild, channel) and Settings.enabled['greeting']:
 					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
 					await channel.send('Koffing-bot is going back to its pokeball~!')
 				elif message.guild is None or message.channel is None:
@@ -389,7 +381,7 @@ async def check_for_koffing(message):
 	if 'koffing' in message.content.lower() or client.user.mentioned_in(message):
 		# logger.info('Found a koffing in the message!')
 
-		if can_message(message.guild, message.channel) and Settings.enabled["text_response"]:
+		if ChannelUtils.can_message(message.guild, message.channel) and Settings.enabled["text_response"]:
 			# Quiet skip this, since that's the point of disabled text response
 			if not SILENT_MODE:
 				message.channel.typing()
@@ -629,9 +621,9 @@ async def skronk(message):
 			Settings.skronks[str(member.id)] = 1
 		if str(member.id) in skronk_times:
 			# add up the time for our skronk
-			skronk_times[str(member.id)] = int(skronk_times[str(member.id)]) + int(skronk_timeout())
+			skronk_times[str(member.id)] = int(skronk_times[str(member.id)]) + int(Settings.skronk_timeout())
 		else:
-			skronk_times[str(member.id)] = int(skronk_timeout())
+			skronk_times[str(member.id)] = int(Settings.skronk_timeout())
 			task_list.append(client.loop.create_task(remove_skronk(member, message)))
 		await member.add_roles(skronk_role)
 		await respond(message, "{} got SKRONK'D!!!! ({}m left)".format(member.mention, str(get_skronk_time(member.id))))
@@ -643,13 +635,13 @@ async def remove_skronk(member, message, silent=False, wait=True, absolute=False
 	"""
 	global skronk_times
 	if wait:
-		await asyncio.sleep(int(skronk_timeout()))
+		await asyncio.sleep(int(Settings.skronk_timeout()))
 
 	discriminating_name = get_discriminating_name(member)
 	logger.info('Attempting to deskronk {}'.format(discriminating_name))
 
 	if str(member.id) in skronk_times:
-		skronk_times[str(member.id)] = int(skronk_times[str(member.id)]) - int(skronk_timeout())
+		skronk_times[str(member.id)] = int(skronk_times[str(member.id)]) - int(Settings.skronk_timeout())
 		if int(skronk_times[str(member.id)]) == 0 or absolute or user_clear:
 			del skronk_times[str(member.id)]
 		else:
@@ -714,10 +706,6 @@ def get_skronk_time(member_id):
 	if id_str not in skronk_times:
 		return -1
 	return int(int(skronk_times[id_str]) / 60)
-
-
-def skronk_timeout():
-	return int(Settings.settings['skronk_timeout'])
 
 
 def get_mentioned(message, everyone=True):
@@ -924,60 +912,6 @@ def string_to_date(string):
 	Turn a string in YYYY-mm-dd into a date object
 	"""
 	return datetime.strptime(string, pretty_date_format).date()
-
-
-def can_message(guild, channel):
-	"""
-	True if the bot is authorized and unmuted for the channel, False otherwise
-	"""
-	return authorized(guild, channel) and not muted(guild, channel)
-
-
-def authorized(guild, channel):
-	"""
-	True if the bot is authorized in this channel
-	"""
-	if str(guild.id) in Settings.authorized_guilds:
-		if str(channel.id) in Settings.authorized_channels[str(guild.id)]:
-			return True
-		else:
-			# logger.info('%s is not an authorized channel in %s', channel.id, guild.id)
-			pass
-	else:
-		# logger.info('%s is not an authorized guild id', guild.id)
-		pass
-	return False
-
-
-def muted(guild, channel):
-	"""
-	True if the bot is muted in this channel
-	"""
-	if str(guild.id) in Settings.muted_channels:
-		return str(channel.id) in Settings.muted_channels[str(guild.id)]
-	return False
-
-
-def mute(guild, channel):
-	"""
-	Adds the channel to the muted list
-	"""
-	logger.info('Muting channel {}::{}...', guild.name, channel.name)
-	if str(guild.id) in Settings.muted_channels:
-		if str(channel.id) not in Settings.muted_channels[str(guild.id)]:
-			Settings.muted_channels[str(guild.id)].append(str(channel.id))
-	else:
-		Settings.muted_channels[str(guild.id)] = [str(channel.id)]
-
-
-def unmute(guild, channel):
-	"""
-	Removes the channel from the muted list
-	"""
-	logger.info('Unmuting channel {}::{}...', guild.name, channel.name)
-	if str(guild.id) in Settings.muted_channels:
-		if str(channel.id) in Settings.muted_channels[str(guild.id)]:
-			Settings.muted_channels[str(guild.id)].remove(str(channel.id))
 
 
 def get_date():

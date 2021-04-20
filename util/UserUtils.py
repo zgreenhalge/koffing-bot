@@ -1,3 +1,8 @@
+from util import Settings
+
+logger = None
+
+
 def get_discriminating_name(user):
 	"""
 	Returns a string of the form <Username>#<USERDISCRIMINATOR>
@@ -10,7 +15,7 @@ def privileged(user):
 	True if this user is a bot admin, False otherwise
 	"""
 	name = get_discriminating_name(user)
-	if name in admin_users:
+	if name in Settings.admin_users:
 		return True
 	else:
 		logger.info('%s is not in the bot admin list', name)

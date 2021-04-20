@@ -1,6 +1,10 @@
 import discord
 
+from util import ChannelUtils
+from util.UserUtils import get_discriminating_name
+
 SILENT_MODE = False
+logger = None
 
 
 async def negative_reaction(message):
@@ -96,7 +100,7 @@ async def respond(message, text, ignore_silent=False, emote="koffing"):
 			await negative_reaction(message)
 	else:
 		# Standard respond
-		if not muted(message.guild, message.channel):
+		if not ChannelUtils.muted(message.guild, message.channel):
 			logger.info('Responding to "%s" (%s) in %s::%s', message.author.display_name,
 						get_discriminating_name(message.author), message.guild.name, message.channel.id)
 			if SILENT_MODE:

@@ -1,5 +1,5 @@
 import os
-from util.FileUtils import turn_file_to_json
+from util.FileUtils import turn_file_to_json, save_file
 
 CONFIG_FILE_NAME = 'koffing.cfg'
 FEATURE_FILE_NAME = "feature_toggle.cfg"
@@ -45,13 +45,17 @@ def save_config(silent=False):
 	save_file(CONFIG_FILE_PATH, contents)
 
 
+def skronk_timeout():
+	return int(settings['skronk_timeout'])
+
+
 def save_feature_toggle(silent=False):
 	"""
 	Save feature toggle map
 	"""
 	if not silent:
 		logger.info("Writing features to disk...")
-	save_file(FEATURE_FILE_PATH, Settings.enabled)
+	save_file(FEATURE_FILE_PATH, enabled)
 
 
 def save_votes(silent=False):
@@ -60,7 +64,7 @@ def save_votes(silent=False):
 	"""
 	if not silent:
 		logger.info('Writing votes to disk...')
-	save_file(VOTE_FILE_PATH, Settings.votes)
+	save_file(VOTE_FILE_PATH, votes)
 
 
 def save_skronk(silent=False):
@@ -69,4 +73,4 @@ def save_skronk(silent=False):
 	"""
 	if not silent:
 		logger.info('Saving skronk...')
-	save_file(SKRONK_FILE_PATH, Settings.skronks)
+	save_file(SKRONK_FILE_PATH, skronks)
