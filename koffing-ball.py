@@ -19,6 +19,7 @@ else:
 
 ret_code = run_and_ret_exit_code(launchCommand)
 while ret_code == 0:
+    print("Attempting to pull the latest from git...")
     ret_code = run_and_ret_exit_code("git pull")
     if ret_code > 0:
         print("Update failed. Git pull return code %d" % ret_code)
