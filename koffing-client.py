@@ -6,12 +6,11 @@ from random import randint
 
 from discord import NotFound, Forbidden
 
-import util
 from util import DateTimeUtils
 from util.DateTimeUtils import est_tz
-from util.LoggingUtils import warning, error
 from util.MessagingUtils import *
 from util.UserUtils import *
+from util.LoggingUtils import info, warning, error
 
 print("Welcome inside koffing's head")
 
@@ -98,7 +97,7 @@ async def on_message(message):
 		# info('  Channel is unauthorized - not processing')
 		return
 
-	global game_str, SILENT_MODE
+	global game_str
 	guild = message.guild
 	content = (message.content + '.')[:-1].lower()
 	author = message.author
@@ -144,7 +143,7 @@ async def on_message(message):
 			info('Skronking is not enabled -- not responding')
 		elif content.startswith('timeout'):
 			if not privileged(author):
-				if not SILENT_MODE:
+				if not Settings.SILENT_MODE:
 					await respond(message, "I'm afraid you can't do that {}".format(author.mention), emote="x")
 				return
 			content = content.replace('timeout', '', 1).lstrip().rstrip()
@@ -184,7 +183,7 @@ async def admin_console(message, content):
 	"""
 	info("Entered admin console for command {}".format(content))
 
-	global SILENT_MODE, game_str
+	global game_str
 	guild = message.guild
 	channel = message.channel
 	author = message.author
@@ -247,8 +246,8 @@ async def admin_console(message, content):
 
 	# Silent mode toggle
 	elif content.startswith('quiet'):
-		SILENT_MODE = not SILENT_MODE
-		util.MessagingUtils.SILENT_MODE = SILENT_MODE
+		Settings.SILENT_MODE = not Settings.SILENT_MODE
+		info("Toggling silent mode to {}".format(Settings.SILENT_MODE))
 		response, emoji = generate_koffing(message.guild)
 		await respond(message, response)
 
@@ -326,13 +325,13 @@ async def check_for_koffing(message):
 
 		if ChannelUtils.can_message(message.guild, message.channel) and Settings.enabled["text_response"]:
 			# Quiet skip this, since that's the point of disabled text response
-			if not SILENT_MODE:
+			if not Settings.SILENT_MODE:
 				message.channel.typing()
 
 			response, emoji = generate_koffing(message.guild)
 			await asyncio.sleep(randint(0, 1))
 			await respond(message, response)
-			if emoji is not None and not SILENT_MODE:
+			if emoji is not None and not Settings.SILENT_MODE:
 				await message.add_reaction(emoji)
 
 		# RETURN HERE TO STOP VOICE FROM HAPPENING BEFORE IT WORKS
@@ -613,7 +612,7 @@ async def clear_skronks(message, force=False, user_clear=False):
 	skronk_role = get_skronk_role(message.guild)
 	if skronk_role in message.author.roles and not force:
 		await respond(message, "You can't do that..", emote="x")
-		if not SILENT_MODE:
+		if not Settings.SILENT_MODE:
 			await respond(message, cmd_prefix + "skronk {}".format(message.author.mention))
 		return
 
