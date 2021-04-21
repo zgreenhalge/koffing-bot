@@ -12,6 +12,8 @@ FEATURE_FILE_PATH = os.path.join(CONFIG_DIR_PATH, FEATURE_FILE_NAME)
 VOTE_FILE_PATH = os.path.join(CONFIG_DIR_PATH, VOTE_FILE_NAME)
 SKRONK_FILE_PATH = os.path.join(CONFIG_DIR_PATH, SKRONK_FILE_NAME)
 
+logger = None
+
 
 def load_settings():
 	global settings, enabled, votes, skronks, authorized_guilds, authorized_channels, muted_channels, admin_users, game_str, SILENT_MODE, SAVE_TIMEOUT
@@ -74,3 +76,16 @@ def save_skronk(silent=False):
 	if not silent:
 		logger.info('Saving skronk...')
 	save_file(SKRONK_FILE_PATH, skronks)
+
+
+def save_all(silent=False):
+	"""
+	Perform all saves
+	"""
+	if not silent:
+		logger.info('Saving to disk...')
+
+	save_config(True)
+	save_feature_toggle(True)
+	save_votes(True)
+	save_skronk(True)

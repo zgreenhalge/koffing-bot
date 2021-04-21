@@ -27,12 +27,12 @@ def get_preferred_name(user):
 	Gets either a user's nickname or their name, if there is no nickname
 	"""
 	if user.nick is not None:
-		return user.name + ' (' + user.nick + ')'
+		return user.nick
 	else:
 		return user.name
 
 
-def get_user_name(user):
+def get_pretty_name(user):
 	"""
 	Gets a pretty string of a user's name and nickname or just name, if there is no nickname
 	"""

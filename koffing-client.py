@@ -5,11 +5,11 @@ from datetime import datetime
 from datetime import timedelta
 from random import randint
 
-import pytz
 from discord import NotFound, Forbidden
 
 import util
-from util import Settings
+from util import DateTimeUtils
+from util.DateTimeUtils import est_tz
 from util.FileUtils import *
 from util.MessagingUtils import *
 from util.UserUtils import *
@@ -38,10 +38,9 @@ SKRONKED = "SKRONK'D"
 koffings = dict()
 oks = dict()
 dev = True
-date_format = '%Y-%m-%d'
-pretty_date_format = '%a %b %d %Y %I:%M:%S %p'
 cmd_prefix = '!'
-est_tz = pytz.timezone('US/Eastern')
+
+
 # --------------------------------------------------------------------
 # Logging set up
 print("Setting up loggers...")
@@ -68,7 +67,7 @@ class StreamToLogger(object):
         # do nothing (:
 
 
-datetime_str = datetime.now(tz=est_tz).strftime(date_format)
+datetime_str = datetime.now(tz=est_tz).strftime(DateTimeUtils.date_format)
 
 logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 log_dir = os.path.join(os.path.dirname(__file__), 'logs')
@@ -88,6 +87,7 @@ util.UserUtils.logger = logger
 util.FileUtils.logger = logger
 util.ChannelUtils.logger = logger
 util.MessagingUtils.logger = logger
+util.Settings.logger = logger
 
 logger.info("Stdout logger intialized")
 
@@ -158,7 +158,6 @@ async def on_message(message):
 
 	global game_str, SILENT_MODE
 	guild = message.guild
-	channel = message.channel
 	content = (message.content + '.')[:-1].lower()
 	author = message.author
 
@@ -294,7 +293,7 @@ async def admin_console(message, content):
 
 	# Manual save
 	elif content.startswith('save'):
-		save_all()
+		Settings.save_all()
 		await respond(message, "State saved.")
 
 	# Load settings from disk
@@ -311,12 +310,12 @@ async def admin_console(message, content):
 
 	# Kill bot
 	elif content.startswith('return') or content.startswith('shutdown'):
-		save_all()
+		Settings.save_all()
 		await shutdown_message(message)
 		ask_exit()
 
 	elif content.startswith('restart'):
-		save_all()
+		Settings.save_all()
 		await shutdown_message(message)
 		ask_restart()
 
@@ -354,7 +353,7 @@ async def timed_save():
 		await asyncio.sleep(Settings.SAVE_TIMEOUT)
 		if not client.is_closed:
 			# could have closed between start of loop & sleep
-			save_all()
+			Settings.save_all()
 
 
 async def shutdown_message(message):
@@ -409,8 +408,6 @@ async def remind_me(message):
 	"""
 	Basic remindme functionality, works for seconds or minutes
 	"""
-	global est_tz
-
 	logger.info('Generating reminder for %s...', get_discriminating_name(message.author))
 	contents = message.content.split(maxsplit=2)
 	# ['/remindme', 'time', 'message']
@@ -432,7 +429,7 @@ async def remind_me(message):
 			return
 
 	current_time = datetime.now(tz=est_tz)
-	wakeup = (current_time + timedelta(seconds=int(float(remind_time)))).strftime(pretty_date_format)
+	wakeup = (current_time + timedelta(seconds=int(float(remind_time)))).strftime(DateTimeUtils.pretty_date_format)
 
 	# Respond based on the length of time to wait
 	# TODO - should we even bother with a text response here?
@@ -510,9 +507,9 @@ async def pin(message):
 		await koffing_reaction(message)
 		await client.pin_message(message)
 	except NotFound:
-		err_logger.warn('Message or channel has been deleted, pin failed')
+		err_logger.warning('Message or channel has been deleted, pin failed')
 	except Forbidden:
-		err_logger.warn('Koffing-bot does not have sufficient permissions to pin in %s::%s',
+		err_logger.warning('Koffing-bot does not have sufficient permissions to pin in %s::%s',
 						message.guild.name, message.channel.id)
 	except Exception as e:
 		err_logger.error('Could not pin message: {}'.format(e))
@@ -522,7 +519,6 @@ async def place_vote(message):
 	"""
 	Adds a vote for @member or @role or @everyone
 	"""
-	global est_tz
 	logger.info('Tallying votes...')
 
 	if len(message.mentions) == 0 and len(message.role_mentions) == 0 and not message.mention_everyone:
@@ -545,7 +541,7 @@ async def place_vote(message):
 		cur_votes, start_time = get_current_votes()
 		if cur_votes is None:
 			cur_votes = {name: 1}
-			Settings.votes[date_to_string(datetime.now(tz=est_tz).date())] = cur_votes
+			Settings.votes[DateTimeUtils.date_to_string(datetime.now(tz=est_tz).date())] = cur_votes
 		else:
 			if name in cur_votes:
 				cur_votes[name] = cur_votes[name] + 1
@@ -830,7 +826,7 @@ def get_vote_leaderboards(guild, requester, call_out=True):
 
 	leaderboard_str = '\n \nLeaderboard for the week starting on {}:\n\n{}```'.format(start[0:-12], leader_str)
 	for tup in sorted_ch_lead:
-		leaderboard_str += '{}: {}'.format(get_user_name(tup[0]), tup[1])
+		leaderboard_str += '{}: {}'.format(get_pretty_name(tup[0]), tup[1])
 		if requester.name == tup[0].name and call_out:
 			leaderboard_str += '<-- It\'s you!\n'
 		else:
@@ -848,7 +844,7 @@ def get_vote_history(guild):
 	leaders = []
 	cur_votes, start = get_current_votes()
 	for date in Settings.votes:
-		if string_to_date(date) < string_to_date(start) and string_to_date(date) - string_to_date(start) > timedelta(
+		if DateTimeUtils.string_to_date(date) < DateTimeUtils.string_to_date(start) and DateTimeUtils.string_to_date(date) - DateTimeUtils.string_to_date(start) > timedelta(
 				-8):
 			if len(Settings.votes[date]) > 0:
 				sorted_users = sorted(Settings.votes[date], key=lambda tup_temp: tup_temp[1], reverse=False)
@@ -874,13 +870,13 @@ def get_vote_history(guild):
 	if len(leaders) == 0:
 		history_str = "This guild has no vote winners..."
 	else:
-		leaders = sorted(leaders, key=lambda tup_temp: datetime.strptime(tup_temp[0], pretty_date_format))
+		leaders = sorted(leaders, key=lambda tup_temp: datetime.strptime(tup_temp[0], DateTimeUtils.pretty_date_format))
 		for tup in leaders:
 			if tup[0] != current_date:
 				current_date = tup[0]
-				history_str += '\n{} - {}: {}'.format(tup[0], get_user_name(tup[1]), tup[2])
+				history_str += '\n{} - {}: {}'.format(tup[0], get_pretty_name(tup[1]), tup[2])
 			else:
-				history_str += '\n             {}: {}'.format(get_user_name(tup[1]), tup[2])
+				history_str += '\n             {}: {}'.format(get_pretty_name(tup[1]), tup[2])
 		history_str += '```'
 
 	return history_str
@@ -890,34 +886,11 @@ def get_current_votes():
 	"""
 	Get the votes map for the current session
 	"""
-	global est_tz
 	now = datetime.now(tz=est_tz).date()
 	for start in Settings.votes:
-		if now - string_to_date(start) < timedelta(7):
+		if now - DateTimeUtils.string_to_date(start) < timedelta(7):
 			return Settings.votes[start], start
 	return None, None
-
-
-def date_to_string(date):
-	"""
-	Turn a date object into a string formatted the way we want (YYYY-mm-dd)
-	"""
-	return date.strftime(pretty_date_format)
-
-
-def string_to_date(string):
-	"""
-	Turn a string in YYYY-mm-dd into a date object
-	"""
-	return datetime.strptime(string, pretty_date_format).date()
-
-
-def get_date():
-	"""
-	Returns a string of the current date in mm-dd-YYYY
-	"""
-	global est_tz
-	return datetime.now(tz=est_tz).strftime('%m-%d-%Y')
 
 
 def generate_koffing(guild):
@@ -926,8 +899,6 @@ def generate_koffing(guild):
 	"""
 	logger.info('Generating koffing string...')
 	koffing_emoji = get_koffing_emoji(guild)
-	koffing_str = None
-	response = None
 
 	koffing_core_str = 'K' + randint(1, 2) * 'o' + 'ff' + randint(1, 4) * 'i' + 'ng'
 	if randint(1, 3) == 1:
@@ -944,30 +915,12 @@ def generate_koffing(guild):
 	return response, koffing_emoji
 
 
-def save_all(silent=False):
-	"""
-	Perform all saves
-	"""
-	if not silent:
-		logger.info('Saving to disk...')
-	Settings.save_config(True)
-	Settings.save_feature_toggle(True)
-	Settings.save_votes(True)
-	Settings.save_skronk(True)
-
-
 def ask_restart():
 	"""
 	Stop all tasks we have spawned before shutting down with return code 0.
 	This signals koffing-ball.py that we should update & restart.
 	"""
-
-	logger.info('Stopping tasks...')
-	global task_list
-	for task in task_list:
-		task.cancel()
-	asyncio.ensure_future(exit())
-
+	stop_tasks()
 	logger.info('Restarting...')
 	sys.exit(0)
 
@@ -985,14 +938,17 @@ def ask_exit():
 	Stop all tasks we have spawned before shutting down with return code 1.
 	This signals koffing-ball.py that we should stop the run loop.
 	"""
+	stop_tasks()
+	logger.info('Stopping...')
+	sys.exit(1)  # return code > 0 means don't restart
+
+
+def stop_tasks():
 	logger.info('Stopping tasks...')
 	global task_list
 	for task in task_list:
 		task.cancel()
 	asyncio.ensure_future(exit())
-
-	logger.info('Stopping...')
-	sys.exit(1)  # return code > 0 means don't restart
 
 
 """
