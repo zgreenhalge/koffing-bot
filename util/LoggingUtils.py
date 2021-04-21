@@ -29,40 +29,42 @@ class StreamToLogger(object):
 LOG_FORMAT = '[%(asctime)-15s] [%(levelname)+7s] [%(threadName)+10s] [%(thread)d] [%(module)s.%(funcName)s] - %(message)s'
 date_str = DateTimeUtils.get_current_date_string()
 
-# Create STD and ERR loggers, and their directories
+# Create log handlers for writing to file, STD and ERR
 # By default loggers will pipe output to an individual file in /koffing-bot/logs created at start up
+# If the directories don't exist, we just make em
 
 print("Setting up loggers...")
 
-logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
 log_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, 'logs'))
 
 if not os.path.exists(log_dir):
 	os.makedirs(log_dir)
 
-logHandler = logging.FileHandler(os.path.join(log_dir, 'LOG_' + date_str + '.txt'),
-								 mode='a', encoding='utf-8')
-logHandler.setLevel(logging.INFO)
-logHandler.setFormatter(logging.Formatter(LOG_FORMAT))
+formatter = logging.Formatter(LOG_FORMAT)
+
+stdHandler = logging.StreamHandler(sys.stdout)
+stdHandler.setLevel(logging.INFO)
+stdHandler.setFormatter(formatter)
+
+fileHandler = logging.FileHandler(os.path.join(log_dir, 'LOG_' + date_str + '.txt'), mode='a', encoding='utf-8')
+fileHandler.setLevel(logging.INFO)
+fileHandler.setFormatter(formatter)
+
+errHandler = logging.FileHandler(os.path.join(log_dir, 'ERR_' + date_str + '.txt'), mode='a', encoding='utf-8')
+errHandler.setFormatter(logging.Formatter(LOG_FORMAT))
+errHandler.setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logHandler)
+logger.setLevel(logging.INFO)
+logger.addHandler(fileHandler)
+logger.addHandler(stdHandler)
+logger.addHandler(errHandler)
+
+# Enable below to force print() statements through our logger
+# sys.stdout = StreamToLogger(logger, logging.INFO)
 
 logger.info("Stdout logger intialized")
 
-err_logger = logging.getLogger('STDERR')
-errHandler = logging.FileHandler(os.path.join(log_dir, 'ERR_' + date_str + '.txt'),
-								 mode='a', encoding='utf-8')
-errHandler.setFormatter(logging.Formatter(LOG_FORMAT))
 
-err_logger.addHandler(errHandler)
-
-sys.stderr = StreamToLogger(err_logger, logging.ERROR)
-
-
-def get_std_logger():
+def get_logger():
 	return logger
-
-
-def get_err_logger():
-	return err_logger

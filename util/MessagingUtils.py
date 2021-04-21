@@ -1,10 +1,9 @@
 import discord
 
-from util import ChannelUtils, LoggingUtils
+from util import ChannelUtils, LoggingUtils, Settings
 from util.UserUtils import get_discriminating_name
 
-SILENT_MODE = False
-logger = LoggingUtils.get_std_logger()
+logger = LoggingUtils.get_logger()
 
 
 async def negative_reaction(message):
@@ -86,7 +85,7 @@ async def respond(message, text, ignore_silent=False, emote="koffing"):
 		return
 
 	# Mute response if we're running in silent mode and we aren't overriding
-	if SILENT_MODE and not ignore_silent:
+	if Settings.SILENT_MODE and not ignore_silent:
 		logger.info('Muted response to "%s" (%s) in %s::%s',
 					message.author.display_name,
 					get_discriminating_name(message.author),
@@ -103,7 +102,7 @@ async def respond(message, text, ignore_silent=False, emote="koffing"):
 		if not ChannelUtils.muted(message.guild, message.channel):
 			logger.info('Responding to "%s" (%s) in %s::%s', message.author.display_name,
 						get_discriminating_name(message.author), message.guild.name, message.channel.id)
-			if SILENT_MODE:
+			if Settings.SILENT_MODE:
 				logger.info('Loud response requested!')
 			await message.channel.send(text)
 

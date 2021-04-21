@@ -12,8 +12,6 @@ from util.DateTimeUtils import est_tz
 from util.MessagingUtils import *
 from util.UserUtils import *
 
-print("Welcome inside koffing's head")
-
 if len(sys.argv) < 2:
 	TOKEN = input('Please enter token: ')
 else:
@@ -41,17 +39,14 @@ cmd_prefix = '!'
 # --------------------------------------------------------------------
 # Logging set up
 
-logger = LoggingUtils.get_std_logger()
-err_logger = LoggingUtils.get_err_logger()
+logger = LoggingUtils.get_logger()
 
-err_logger.info('###############################################')
-err_logger.info('#-----------------NEW SESSION-----------------#')
-err_logger.info('#------------------' + DateTimeUtils.get_current_date_string() + '-----------------#')
-err_logger.info('###############################################')
+logger.warning('###############################################')
+logger.warning('#-----------------NEW SESSION-----------------#')
+logger.warning('#------------------' + DateTimeUtils.get_current_date_string() + '-----------------#')
+logger.warning('###############################################')
 # --------------------------------------------------------------------
 # Control lists
-logger.info("Loading settings...")
-
 Settings.load_settings()
 
 skronk_times = {}
@@ -250,7 +245,7 @@ async def admin_console(message, content):
 	# Silent mode toggle
 	elif content.startswith('quiet'):
 		Settings.SILENT_MODE = not Settings.SILENT_MODE
-		info("Toggling silent mode to {}".format(Settings.SILENT_MODE))
+		logger.info("Toggling silent mode to {}".format(Settings.SILENT_MODE))
 		response, emoji = generate_koffing(message.guild)
 		await respond(message, response)
 
@@ -453,12 +448,12 @@ async def pin(message):
 		await koffing_reaction(message)
 		await client.pin_message(message)
 	except NotFound:
-		err_logger.warning('Message or channel has been deleted, pin failed')
+		logger.warning('Message or channel has been deleted, pin failed')
 	except Forbidden:
-		err_logger.warning('Koffing-bot does not have sufficient permissions to pin in %s::%s',
+		logger.warning('Koffing-bot does not have sufficient permissions to pin in %s::%s',
 						message.guild.name, message.channel.id)
 	except Exception as e:
-		err_logger.error('Could not pin message: {}'.format(e))
+		logger.error('Could not pin message: {}'.format(e))
 
 
 async def place_vote(message):

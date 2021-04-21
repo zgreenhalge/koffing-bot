@@ -13,15 +13,17 @@ FEATURE_FILE_PATH = os.path.join(CONFIG_DIR_PATH, FEATURE_FILE_NAME)
 VOTE_FILE_PATH = os.path.join(CONFIG_DIR_PATH, VOTE_FILE_NAME)
 SKRONK_FILE_PATH = os.path.join(CONFIG_DIR_PATH, SKRONK_FILE_NAME)
 
-logger = LoggingUtils.get_std_logger()
+logger = LoggingUtils.get_logger()
 
 
 def load_settings():
 	global settings, enabled, votes, skronks, authorized_guilds, authorized_channels, muted_channels, admin_users, game_str, SILENT_MODE, SAVE_TIMEOUT
 
 	if not os.path.exists(CONFIG_DIR_PATH):
+		logger.info("Creating {}...".format(CONFIG_DIR_PATH))
 		os.makedirs(CONFIG_DIR_PATH)
 
+	logger.info("Loading settings...")
 	settings = turn_file_to_json(CONFIG_FILE_PATH, False)
 	enabled = turn_file_to_json(FEATURE_FILE_PATH, False)
 	votes = turn_file_to_json(VOTE_FILE_PATH, False)
