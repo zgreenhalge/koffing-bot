@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import sys
@@ -59,11 +60,18 @@ err_logger.addHandler(errHandler)
 
 sys.stderr = StreamToLogger(err_logger, logging.ERROR)
 
-def get_std_logger():
-	# TODO does this object need to be synchronous?
-	return logger
+
+def info(message, *args):
+	logger.info(message, *args)
 
 
-def get_err_logger():
-	# TODO does this object need to be synchronous?
-	return err_logger
+def debug(message, *args):
+	logger.debug(message, *args)
+
+
+def warning(message, *args):
+	logger.warning(message, *args)
+
+
+def error(message, *args):
+	logger.error(message, *args)

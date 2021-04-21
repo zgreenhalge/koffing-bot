@@ -1,10 +1,10 @@
 import discord
 
-from util import ChannelUtils, LoggingUtils
+from util import ChannelUtils
+from util.LoggingUtils import info
 from util.UserUtils import get_discriminating_name
 
 SILENT_MODE = False
-logger = LoggingUtils.get_std_logger()
 
 
 async def negative_reaction(message):
@@ -13,9 +13,9 @@ async def negative_reaction(message):
 	"""
 	emoji = get_x_emoji(message.guild)
 	if emoji is None or emoji == '':
-		logger.info('Got a blank value for X emote, no reaction possible')
+		info('Got a blank value for X emote, no reaction possible')
 	else:
-		logger.info('Reacting with a negative emoji')
+		info('Reacting with a negative emoji')
 		await message.add_reaction(emoji)
 
 
@@ -25,9 +25,9 @@ async def positive_reaction(message):
 	"""
 	emoji = get_ok_emoji(message.guild)
 	if emoji is None or emoji == '':
-		logger.info('Got a blank value for ok_hand emote, no reaction possible')
+		info('Got a blank value for ok_hand emote, no reaction possible')
 	else:
-		logger.info('Reacting with a positive emoji')
+		info('Reacting with a positive emoji')
 		await message.add_reaction(emoji)
 
 
@@ -37,9 +37,9 @@ async def koffing_reaction(message):
 	"""
 	emoji = get_koffing_emoji(message.guild)
 	if emoji is None or emoji == '':
-		logger.info('Got a blank value for koffing emote, no reaction possible')
+		info('Got a blank value for koffing emote, no reaction possible')
 	else:
-		logger.info('Reacting with a koffing emoji')
+		info('Reacting with a koffing emoji')
 		await message.add_reaction(emoji)
 
 
@@ -49,7 +49,7 @@ def get_koffing_emoji(guild):
 	"""
 	return_emoji = ''
 	if guild is None:
-		logger.info('No guild information to find koffing!')
+		info('No guild information to find koffing!')
 		return return_emoji
 
 	for emoji in guild.emojis:
@@ -57,7 +57,7 @@ def get_koffing_emoji(guild):
 			return_emoji = emoji
 
 	if return_emoji == '':
-		logger.info('Could not find koffing emote')
+		info('Could not find koffing emote')
 	return return_emoji
 
 
@@ -87,7 +87,7 @@ async def respond(message, text, ignore_silent=False, emote="koffing"):
 
 	# Mute response if we're running in silent mode and we aren't overriding
 	if SILENT_MODE and not ignore_silent:
-		logger.info('Muted response to "%s" (%s) in %s::%s',
+		info('Muted response to "%s" (%s) in %s::%s',
 					message.author.display_name,
 					get_discriminating_name(message.author),
 					message.guild.name,
@@ -101,10 +101,10 @@ async def respond(message, text, ignore_silent=False, emote="koffing"):
 	else:
 		# Standard respond
 		if not ChannelUtils.muted(message.guild, message.channel):
-			logger.info('Responding to "%s" (%s) in %s::%s', message.author.display_name,
+			info('Responding to "%s" (%s) in %s::%s', message.author.display_name,
 						get_discriminating_name(message.author), message.guild.name, message.channel.id)
 			if SILENT_MODE:
-				logger.info('Loud response requested!')
+				info('Loud response requested!')
 			await message.channel.send(text)
 
 
@@ -117,7 +117,7 @@ async def direct_response(message, text):
 		await message.author.create_dm()
 		channel = message.author.dm_channel
 
-	logger.info('Sending DM to %s', get_discriminating_name(message.author))
+	info('Sending DM to %s', get_discriminating_name(message.author))
 	if text == '':
 		await channel.send(':eyes:')
 	# client.send_message(message.author, ':eyes:')

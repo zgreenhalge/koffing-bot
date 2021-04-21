@@ -1,6 +1,5 @@
 from util import Settings, LoggingUtils
-
-logger = LoggingUtils.get_std_logger()
+from util.LoggingUtils import info
 
 
 def get_discriminating_name(user):
@@ -18,7 +17,7 @@ def privileged(user):
 	if name in Settings.admin_users:
 		return True
 	else:
-		logger.info('%s is not in the bot admin list', name)
+		info('%s is not in the bot admin list', name)
 		return False
 
 

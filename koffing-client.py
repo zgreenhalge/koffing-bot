@@ -7,8 +7,9 @@ from random import randint
 from discord import NotFound, Forbidden
 
 import util
-from util import DateTimeUtils, LoggingUtils
+from util import DateTimeUtils
 from util.DateTimeUtils import est_tz
+from util.LoggingUtils import warning, error
 from util.MessagingUtils import *
 from util.UserUtils import *
 
@@ -41,16 +42,13 @@ cmd_prefix = '!'
 # --------------------------------------------------------------------
 # Logging set up
 
-logger = LoggingUtils.get_std_logger()
-err_logger = LoggingUtils.get_err_logger()
-
-err_logger.info('###############################################')
-err_logger.info('#-----------------NEW SESSION-----------------#')
-err_logger.info('#------------------' + DateTimeUtils.get_current_date_string() + '-----------------#')
-err_logger.info('###############################################')
+warning('###############################################')
+warning('#-----------------NEW SESSION-----------------#')
+warning('#------------------' + DateTimeUtils.get_current_date_string() + '-----------------#')
+warning('###############################################')
 # --------------------------------------------------------------------
 # Control lists
-logger.info("Loading settings...")
+info("Loading settings...")
 
 Settings.load_settings()
 
@@ -67,11 +65,11 @@ async def on_ready():
 	"""
 	Called when the client has succesfully started up & logged in with our token
 	"""
-	logger.info('\n-----------------\nLogged in as %s - %s\n-----------------', client.user.name, client.user.id)
+	info('\n-----------------\nLogged in as %s - %s\n-----------------', client.user.name, client.user.id)
 	if dev:
-		logger.info('Member of the following guilds:')
+		info('Member of the following guilds:')
 		for guild in client.guilds:
-			logger.info('  %s (%s)', guild.name, guild.id)
+			info('  %s (%s)', guild.name, guild.id)
 
 	new_game = discord.Game(Settings.game_str)
 	await client.change_presence(activity=new_game)
@@ -80,9 +78,9 @@ async def on_ready():
 		if guild.id in Settings.authorized_guilds:
 			for channel in guild.channels:
 				if channel.type == discord.ChannelType.text and ChannelUtils.can_message(guild, channel) and Settings.enabled['greeting']:
-					logger.info('Alerting %s::%s to bot presence', guild.name, channel.id)
+					info('Alerting %s::%s to bot presence', guild.name, channel.id)
 					await client.send_message(channel, START_MESSAGES[randint(0, len(START_MESSAGES) - 1)])
-	logger.info('Koffing-bot is up and running!')
+	info('Koffing-bot is up and running!')
 
 
 @client.event
@@ -94,10 +92,10 @@ async def on_message(message):
 		await on_direct_message(message)
 		return
 
-	logger.info('Received message from "%s" (%s) in %s::%s', get_preferred_name(message.author),
+	info('Received message from "%s" (%s) in %s::%s', get_preferred_name(message.author),
 				get_discriminating_name(message.author), message.guild.name, message.channel.name)
 	if not ChannelUtils.authorized(message.guild, message.channel):
-		# logger.info('  Channel is unauthorized - not processing')
+		# info('  Channel is unauthorized - not processing')
 		return
 
 	global game_str, SILENT_MODE
@@ -118,10 +116,10 @@ async def on_message(message):
 	# Sotd pinning
 	elif content.startswith('#sotd'):
 		if not Settings.enabled['sotd_pin']:
-			logger.info("sotd_pin is not enabled")
+			info("sotd_pin is not enabled")
 			# Don't alert channel to pin disabled
 			return
-		logger.info('Pinning #SotD')
+		info('Pinning #SotD')
 		await pin(message)
 
 	# Voting
@@ -143,7 +141,7 @@ async def on_message(message):
 	elif content.startswith(cmd_prefix + 'skronk'):
 		content = content.replace(cmd_prefix + 'skronk', '', 1).lstrip().rstrip()
 		if not Settings.enabled['skronk']:
-			logger.info('Skronking is not enabled -- not responding')
+			info('Skronking is not enabled -- not responding')
 		elif content.startswith('timeout'):
 			if not privileged(author):
 				if not SILENT_MODE:
@@ -184,7 +182,7 @@ async def admin_console(message, content):
 	-Manually save state
 	-Shut down bot
 	"""
-	logger.info("Entered admin console for command {}".format(content))
+	info("Entered admin console for command {}".format(content))
 
 	global SILENT_MODE, game_str
 	guild = message.guild
@@ -223,7 +221,7 @@ async def admin_console(message, content):
 		else:
 			if ChannelUtils.muted(guild, channel):
 				response, emoji = generate_koffing(guild)
-				logger.info('Responding to "%s" (%s) in %s::%s', author.display_name, get_discriminating_name(author),
+				info('Responding to "%s" (%s) in %s::%s', author.display_name, get_discriminating_name(author),
 							guild.name, channel.id)
 				await respond(message, response)
 			ChannelUtils.unmute(guild, channel)
@@ -234,7 +232,7 @@ async def admin_console(message, content):
 			await respond(message, 'Game is not enabled', emote="x")
 		else:
 			game_str = message.content[13:].lstrip().rstrip()
-			logger.info("Setting bot to playing '{}'".format(game_str))
+			info("Setting bot to playing '{}'".format(game_str))
 			await client.change_presence(game=discord.Game(name=game_str))
 
 	# Manual save
@@ -267,7 +265,7 @@ async def admin_console(message, content):
 
 	# Unrecognized command
 	else:
-		logger.info('Unknown command attempt from %s: [%s]', get_discriminating_name(author),
+		info('Unknown command attempt from %s: [%s]', get_discriminating_name(author),
 					(message.content + '.')[:-1].lower())
 		await respond(message, "Skronk!", emote="x")
 
@@ -279,7 +277,7 @@ async def on_direct_message(message):
 	if message.author.id is client.user.id:
 		return
 
-	logger.info('Got a DM from %s', get_discriminating_name(message.author))
+	info('Got a DM from %s', get_discriminating_name(message.author))
 	content = message.content
 
 	if content.startswith(cmd_prefix + 'remindme'):
@@ -310,12 +308,12 @@ async def shutdown_message(message):
 		for channel in guild.channels:
 			if channel.type == discord.ChannelType.text:
 				if ChannelUtils.can_message(guild, channel) and Settings.enabled['greeting']:
-					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
+					info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
 					await channel.send('Koffing-bot is going back to its pokeball~!')
 				elif message.guild is None or message.channel is None:
 					continue
 				elif guild.id == message.guild.id and channel.id == message.channel.id:
-					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
+					info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
 					await channel.send('Koffing-bot is going back to its pokeball~!')
 
 
@@ -324,7 +322,7 @@ async def check_for_koffing(message):
 	Checks a message content for the word 'koffing' and gets excited if its there
 	"""
 	if 'koffing' in message.content.lower() or client.user.mentioned_in(message):
-		# logger.info('Found a koffing in the message!')
+		# info('Found a koffing in the message!')
 
 		if ChannelUtils.can_message(message.guild, message.channel) and Settings.enabled["text_response"]:
 			# Quiet skip this, since that's the point of disabled text response
@@ -342,7 +340,7 @@ async def check_for_koffing(message):
 
 		# need to figure out ffmpeg before this will work
 		if message.author.voice_channel is not None and enabled["voice_response"]:
-			logger.info('Attempting to play in voice channel %s', message.author.voice_channel.id)
+			info('Attempting to play in voice channel %s', message.author.voice_channel.id)
 			voice = voice_client_int(message.guild)
 			if voice is None or voice.channel != message.author.voice_channel:
 				voice = client.join_voice_channel(message.author.voice_channel)
@@ -354,7 +352,7 @@ async def remind_me(message):
 	"""
 	Basic remindme functionality, works for seconds or minutes
 	"""
-	logger.info('Generating reminder for %s...', get_discriminating_name(message.author))
+	info('Generating reminder for %s...', get_discriminating_name(message.author))
 	contents = message.content.split(maxsplit=2)
 	# ['/remindme', 'time', 'message']
 	if len(contents) < 3:
@@ -385,7 +383,7 @@ async def remind_me(message):
 		await koffing_reaction(message)
 
 	task_list.append(client.loop.create_task(delayed_response(message, "This is your reminder from {}:\n\n{}".format(current_time, contents[2]), remind_time)))
-	logger.info('Reminder generated for %s in %s seconds (%s)', get_discriminating_name(message.author), remind_time, wakeup)
+	info('Reminder generated for %s in %s seconds (%s)', get_discriminating_name(message.author), remind_time, wakeup)
 
 	return
 
@@ -394,7 +392,7 @@ async def hype(message):
 	"""
 	Beefs up the message and parrots it back
 	"""
-	logger.info('Hyping message!')
+	info('Hyping message!')
 	phrase = message.content.replace('/hype', '', 1).lstrip().rstrip()
 	if phrase == "":
 		await respond(message, "Skronk!", emote="x")
@@ -422,10 +420,10 @@ async def add_admin(message):
 		user_str = get_discriminating_name(user)
 		if user_str not in Settings.admin_users:
 			msg_str = 'Added {} to the admin list.'.format(user.mention)
-			logger.info('' + msg_str)
+			info('' + msg_str)
 			Settings.admin_users.append(user_str)
 			await respond(message, msg_str)
-	logger.info('Done adding admins.')
+	info('Done adding admins.')
 
 
 async def remove_admin(message):
@@ -438,34 +436,34 @@ async def remove_admin(message):
 		user_str = get_discriminating_name(user)
 		if user_str in Settings.admin_users:
 			msg_str = 'Removed {} from the admin list.'.format(user.mention)
-			logger.info('' + msg_str)
+			info('' + msg_str)
 			Settings.admin_users.remove(user_str)
 			await respond(message, msg_str)
-	logger.info('Done removing admins.')
+	info('Done removing admins.')
 
 
 async def pin(message):
 	"""
 	Pins a message
 	"""
-	logger.info('Pinning message')
+	info('Pinning message')
 	try:
 		await koffing_reaction(message)
 		await client.pin_message(message)
 	except NotFound:
-		err_logger.warning('Message or channel has been deleted, pin failed')
+		warning('Message or channel has been deleted, pin failed')
 	except Forbidden:
-		err_logger.warning('Koffing-bot does not have sufficient permissions to pin in %s::%s',
+		warning('Koffing-bot does not have sufficient permissions to pin in %s::%s',
 						message.guild.name, message.channel.id)
 	except Exception as e:
-		err_logger.error('Could not pin message: {}'.format(e))
+		error('Could not pin message: {}'.format(e))
 
 
 async def place_vote(message):
 	"""
 	Adds a vote for @member or @role or @everyone
 	"""
-	logger.info('Tallying votes...')
+	info('Tallying votes...')
 
 	if len(message.mentions) == 0 and len(message.role_mentions) == 0 and not message.mention_everyone:
 		await respond(message, "Tag someone to vote for them!", emote="x")
@@ -509,7 +507,7 @@ async def skronk(message):
 	"""
 	Skronks @member
 	"""
-	logger.info('Skronking..')
+	info('Skronking..')
 
 	global skronk_times
 	skronk_role = get_skronk_role(message.guild)
@@ -580,14 +578,14 @@ async def remove_skronk(member, message, silent=False, wait=True, absolute=False
 		await asyncio.sleep(int(Settings.skronk_timeout()))
 
 	discriminating_name = get_discriminating_name(member)
-	logger.info('Attempting to deskronk {}'.format(discriminating_name))
+	info('Attempting to deskronk {}'.format(discriminating_name))
 
 	if str(member.id) in skronk_times:
 		skronk_times[str(member.id)] = int(skronk_times[str(member.id)]) - int(Settings.skronk_timeout())
 		if int(skronk_times[str(member.id)]) == 0 or absolute or user_clear:
 			del skronk_times[str(member.id)]
 		else:
-			logger.info('Skronk has not yet expired!')
+			info('Skronk has not yet expired!')
 			await respond(message, "Only {}m of shame left {}".format(str(get_skronk_time(member.id)), member.mention))
 			task_list.append(client.loop.create_task(remove_skronk(member, message, silent, wait, absolute)))
 			return
@@ -595,18 +593,18 @@ async def remove_skronk(member, message, silent=False, wait=True, absolute=False
 	skronk_role = get_skronk_role(message.guild)
 	if skronk_role is not None and skronk_role in member.roles:
 		await member.remove_roles(skronk_role)
-		logger.info(' Deskronked {}'.format(discriminating_name))
+		info(' Deskronked {}'.format(discriminating_name))
 		if not silent:
 			await respond(message, "You're out of skronk {}!".format(member.mention))
 	else:
-		logger.warning(' Unable to deskronk {}; looked for {} in {}.'.format(discriminating_name, skronk_role, member.roles))
+		warning(' Unable to deskronk {}; looked for {} in {}.'.format(discriminating_name, skronk_role, member.roles))
 
 
 async def clear_skronks(message, force=False, user_clear=False):
 	"""
 	Clears all skronks. If this is not a forced clear, it will not happen if the author is skronked
 	"""
-	logger.info('Attempting to clear all skronks...')
+	info('Attempting to clear all skronks...')
 
 	if not privileged(message.author):
 		await respond(message, "I'm afraid you can't do that {}".format(message.author.mention), emote="x")
@@ -678,12 +676,12 @@ def members_of_role(guild, role):
 	"""
 	Returns an array of all members for the given role in the given guild
 	"""
-	logger.info("Looking for all members of {}".format(role.name))
+	info("Looking for all members of {}".format(role.name))
 	ret = []
 	for member in guild.members:
 		if role in member.roles:
 			ret.append(member)
-	logger.info('Found {} members with the role: {}'.format(len(ret), ret))
+	info('Found {} members with the role: {}'.format(len(ret), ret))
 	return ret
 
 
@@ -691,11 +689,11 @@ def get_skronk_role(guild):
 	"""
 	Finds the role named SKRONK'D
 	"""
-	logger.info("Looking for skronk role...")
+	info("Looking for skronk role...")
 	for role in guild.roles:
 		if role.name.lower() == SKRONKED.lower():
 			return role
-	logger.info("Did not find role named {}".format(SKRONKED))
+	info("Did not find role named {}".format(SKRONKED))
 	return None
 
 
@@ -716,7 +714,7 @@ def get_admin_list(guild):
 	"""
 	Gets a string containing the list of bot admins
 	"""
-	logger.info('Obtaining admin list')
+	info('Obtaining admin list')
 	admin_str = 'listens to the following trainers:\n'
 	for user in Settings.admin_users:
 		admin = guild.get_member_named(user)
@@ -729,7 +727,7 @@ def get_vote_leaderboards(guild, requester, call_out=True):
 	"""
 	Returns a string of the current vote leaderboard
 	"""
-	logger.info('Compiling vote leaderboards...')
+	info('Compiling vote leaderboards...')
 	guild_leaders = []
 	cur_votes, start = get_current_votes()
 	if cur_votes is None:
@@ -785,7 +783,7 @@ def get_vote_history(guild):
 	"""
 	Returns a string of all the winners of each recorded voting session
 	"""
-	logger.info('Compiling vote winners...')
+	info('Compiling vote winners...')
 
 	leaders = []
 	cur_votes, start = get_current_votes()
@@ -843,7 +841,7 @@ def generate_koffing(guild):
 	"""
 	Returns a string of a happy koffing
 	"""
-	logger.info('Generating koffing string...')
+	info('Generating koffing string...')
 	koffing_emoji = get_koffing_emoji(guild)
 
 	koffing_core_str = 'K' + randint(1, 2) * 'o' + 'ff' + randint(1, 4) * 'i' + 'ng'
@@ -867,7 +865,7 @@ def ask_restart():
 	This signals koffing-ball.py that we should update & restart.
 	"""
 	stop_tasks()
-	logger.info('Restarting...')
+	info('Restarting...')
 	sys.exit(0)
 
 
@@ -875,7 +873,7 @@ async def exit():
 	"""
 	Shutdown the client and bring koffing offline. Goodbye old friend.
 	"""
-	logger.info('Stopping main client...')
+	info('Stopping main client...')
 	await client.logout()
 
 
@@ -885,12 +883,12 @@ def ask_exit():
 	This signals koffing-ball.py that we should stop the run loop.
 	"""
 	stop_tasks()
-	logger.info('Stopping...')
+	info('Stopping...')
 	sys.exit(1)  # return code > 0 means don't restart
 
 
 def stop_tasks():
-	logger.info('Stopping tasks...')
+	info('Stopping tasks...')
 	global task_list
 	for task in task_list:
 		task.cancel()
@@ -900,6 +898,6 @@ def stop_tasks():
 """
 Bring koffing to life! Bring him to liiiiiife!!!!
 """
-logger.info("Starting client...")
+info("Starting client...")
 client.loop.create_task(timed_save())
 client.run(TOKEN)

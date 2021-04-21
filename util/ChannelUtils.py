@@ -1,6 +1,5 @@
-from util import Settings, LoggingUtils
-
-logger = LoggingUtils.get_std_logger()
+from util import Settings
+from util.LoggingUtils import info
 
 
 def can_message(guild, channel):
@@ -17,12 +16,6 @@ def authorized(guild, channel):
 	if str(guild.id) in Settings.authorized_guilds:
 		if str(channel.id) in Settings.authorized_channels[str(guild.id)]:
 			return True
-		else:
-			# logger.info('%s is not an authorized channel in %s', channel.id, guild.id)
-			pass
-	else:
-		# logger.info('%s is not an authorized guild id', guild.id)
-		pass
 	return False
 
 
@@ -39,7 +32,7 @@ def mute(guild, channel):
 	"""
 	Adds the channel to the muted list
 	"""
-	logger.info('Muting channel {}::{}...', guild.name, channel.name)
+	info('Muting channel {}::{}...', guild.name, channel.name)
 	if str(guild.id) in Settings.muted_channels:
 		if str(channel.id) not in Settings.muted_channels[str(guild.id)]:
 			Settings.muted_channels[str(guild.id)].append(str(channel.id))
@@ -51,7 +44,7 @@ def unmute(guild, channel):
 	"""
 	Removes the channel from the muted list
 	"""
-	logger.info('Unmuting channel {}::{}...', guild.name, channel.name)
+	info('Unmuting channel {}::{}...', guild.name, channel.name)
 	if str(guild.id) in Settings.muted_channels:
 		if str(channel.id) in Settings.muted_channels[str(guild.id)]:
 			Settings.muted_channels[str(guild.id)].remove(str(channel.id))

@@ -16,7 +16,6 @@ def open_file(path, array):
 	"""
 	Return content of the file, or an empty array/map
 	"""
-	content = ''
 	if not os.path.exists(path):
 		if array:
 			content = []
