@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import sys
 from datetime import datetime
 from datetime import timedelta
@@ -8,9 +7,8 @@ from random import randint
 from discord import NotFound, Forbidden
 
 import util
-from util import DateTimeUtils
+from util import DateTimeUtils, LoggingUtils
 from util.DateTimeUtils import est_tz
-from util.FileUtils import *
 from util.MessagingUtils import *
 from util.UserUtils import *
 
@@ -22,7 +20,6 @@ else:
 	TOKEN = sys.argv[1].lstrip().rstrip()
 
 START_MESSAGES = ["Koffing-bot, go~!", "Get 'em Koffing-bot~!"]
-LOG_FORMAT = '[%(asctime)-15s] [%(levelname)+7s] [%(threadName)+10s] [%(thread)d] [%(module)s.%(funcName)s] - %(message)s'
 HELP = ('Koffing~~ I will listen to any trainer with enough badges!```'
 		'\nCommands (*=requires privilege):'
 		'\n /koffing help'
@@ -43,66 +40,13 @@ cmd_prefix = '!'
 
 # --------------------------------------------------------------------
 # Logging set up
-print("Setting up loggers...")
 
-
-class StreamToLogger(object):
-	"""
-	Fake stream-like object that redirects writes to a logger instance.
-	"""
-
-	def __init__(self, logger, log_level):
-		self.logger = logger
-		self.log_level = log_level
-		self.linebuf = ''
-
-	def write(self, buf):
-		if not buf.isspace():
-			for line in buf.splitlines():
-				if line:
-					self.logger.log(self.log_level, line)
-
-	def flush(self):
-            return
-        # do nothing (:
-
-
-datetime_str = datetime.now(tz=est_tz).strftime(DateTimeUtils.date_format)
-
-logging.basicConfig(format=LOG_FORMAT, level=logging.INFO)
-log_dir = os.path.join(os.path.dirname(__file__), 'logs')
-
-if not os.path.exists(log_dir):
-	os.makedirs(log_dir)
-
-logHandler = logging.FileHandler(os.path.join(os.path.dirname(__file__), 'logs', 'LOG_' + datetime_str + '.txt'),
-								 mode='a', encoding='utf-8')
-logHandler.setLevel(logging.INFO)
-logHandler.setFormatter(logging.Formatter(LOG_FORMAT))
-
-logger = logging.getLogger(__name__)
-logger.addHandler(logHandler)
-
-util.UserUtils.logger = logger
-util.FileUtils.logger = logger
-util.ChannelUtils.logger = logger
-util.MessagingUtils.logger = logger
-util.Settings.logger = logger
-
-logger.info("Stdout logger intialized")
-
-err_logger = logging.getLogger('STDERR')
-errHandler = logging.FileHandler(os.path.join(os.path.dirname(__file__), 'logs', 'ERR_' + datetime_str + '.txt'),
-								 mode='a', encoding='utf-8')
-errHandler.setFormatter(logging.Formatter(LOG_FORMAT))
-
-err_logger.addHandler(errHandler)
-
-sys.stderr = StreamToLogger(err_logger, logging.ERROR)
+logger = LoggingUtils.get_std_logger()
+err_logger = LoggingUtils.get_err_logger()
 
 err_logger.info('###############################################')
 err_logger.info('#-----------------NEW SESSION-----------------#')
-err_logger.info('#------------------' + datetime_str + '-----------------#')
+err_logger.info('#------------------' + DateTimeUtils.get_current_date_string() + '-----------------#')
 err_logger.info('###############################################')
 # --------------------------------------------------------------------
 # Control lists
@@ -240,6 +184,8 @@ async def admin_console(message, content):
 	-Manually save state
 	-Shut down bot
 	"""
+	logger.info("Entered admin console for command {}".format(content))
+
 	global SILENT_MODE, game_str
 	guild = message.guild
 	channel = message.channel

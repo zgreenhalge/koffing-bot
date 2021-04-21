@@ -1,4 +1,5 @@
 import os
+from util import LoggingUtils
 from util.FileUtils import turn_file_to_json, save_file
 
 CONFIG_FILE_NAME = 'koffing.cfg'
@@ -12,7 +13,7 @@ FEATURE_FILE_PATH = os.path.join(CONFIG_DIR_PATH, FEATURE_FILE_NAME)
 VOTE_FILE_PATH = os.path.join(CONFIG_DIR_PATH, VOTE_FILE_NAME)
 SKRONK_FILE_PATH = os.path.join(CONFIG_DIR_PATH, SKRONK_FILE_NAME)
 
-logger = None
+logger = LoggingUtils.get_std_logger()
 
 
 def load_settings():

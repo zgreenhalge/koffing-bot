@@ -14,3 +14,13 @@ class AbstractFeature(ABC):
 		"""
 		Execute this feature against the given message
 		"""
+
+	def serialize(self):
+		"""
+		Write any pending tasks to disk
+		"""
+
+	def deserialize(self):
+		"""
+		Read any leftover tasks from disk and restart processing
+		"""

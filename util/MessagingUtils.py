@@ -1,10 +1,10 @@
 import discord
 
-from util import ChannelUtils
+from util import ChannelUtils, LoggingUtils
 from util.UserUtils import get_discriminating_name
 
 SILENT_MODE = False
-logger = None
+logger = LoggingUtils.get_std_logger()
 
 
 async def negative_reaction(message):

@@ -1,6 +1,6 @@
-from util import Settings
+from util import Settings, LoggingUtils
 
-logger = None
+logger = LoggingUtils.get_std_logger()
 
 
 def get_discriminating_name(user):
