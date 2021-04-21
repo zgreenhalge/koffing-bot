@@ -60,17 +60,9 @@ err_logger.addHandler(errHandler)
 sys.stderr = StreamToLogger(err_logger, logging.ERROR)
 
 
-def info(message, *args):
-	logger.info(message, *args)
+def get_std_logger():
+	return logger
 
 
-def debug(message, *args):
-	logger.debug(message, *args)
-
-
-def warning(message, *args):
-	logger.warning(message, *args)
-
-
-def error(message, *args):
-	logger.error(message, *args)
+def get_err_logger():
+	return err_logger

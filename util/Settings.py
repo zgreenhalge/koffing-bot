@@ -1,6 +1,6 @@
 import os
+from util import LoggingUtils
 from util.FileUtils import turn_file_to_json, save_file
-from util.LoggingUtils import info
 
 CONFIG_FILE_NAME = 'koffing.cfg'
 FEATURE_FILE_NAME = "feature_toggle.cfg"
@@ -12,6 +12,8 @@ CONFIG_FILE_PATH = os.path.join(CONFIG_DIR_PATH, CONFIG_FILE_NAME)
 FEATURE_FILE_PATH = os.path.join(CONFIG_DIR_PATH, FEATURE_FILE_NAME)
 VOTE_FILE_PATH = os.path.join(CONFIG_DIR_PATH, VOTE_FILE_NAME)
 SKRONK_FILE_PATH = os.path.join(CONFIG_DIR_PATH, SKRONK_FILE_NAME)
+
+logger = LoggingUtils.get_std_logger()
 
 
 def load_settings():
@@ -42,7 +44,7 @@ def save_config(silent=False):
 				'muted_channels': muted_channels, 'admin_users': admin_users, 'game': game_str,
 				'skronk_timeout': skronk_timeout(), 'silent_mode': SILENT_MODE, 'save_timeout': SAVE_TIMEOUT}
 	if not silent:
-		info('Writing settings to disk...')
+		logger.info('Writing settings to disk...')
 	save_file(CONFIG_FILE_PATH, contents)
 
 
@@ -55,7 +57,7 @@ def save_feature_toggle(silent=False):
 	Save feature toggle map
 	"""
 	if not silent:
-		info("Writing features to disk...")
+		logger.info("Writing features to disk...")
 	save_file(FEATURE_FILE_PATH, enabled)
 
 
@@ -64,7 +66,7 @@ def save_votes(silent=False):
 	Save vote map
 	"""
 	if not silent:
-		info('Writing votes to disk...')
+		logger.info('Writing votes to disk...')
 	save_file(VOTE_FILE_PATH, votes)
 
 
@@ -73,7 +75,7 @@ def save_skronk(silent=False):
 	Save skronk list
 	"""
 	if not silent:
-		info('Saving skronk...')
+		logger.info('Saving skronk...')
 	save_file(SKRONK_FILE_PATH, skronks)
 
 
@@ -82,7 +84,7 @@ def save_all(silent=False):
 	Perform all saves
 	"""
 	if not silent:
-		info('Saving to disk...')
+		logger.info('Saving to disk...')
 
 	save_config(True)
 	save_feature_toggle(True)
