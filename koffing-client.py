@@ -1,12 +1,12 @@
-import asyncio
 import sys
 from datetime import datetime
 from datetime import timedelta
-from random import randint
 
 from discord import NotFound, Forbidden
 
+from features.AdminConsole import AdminConsole
 from util import DateTimeUtils, FeatureUtils
+from util.ClientUtils import task_list
 from util.DateTimeUtils import est_tz
 from util.MessagingUtils import *
 from util.UserUtils import *
@@ -17,22 +17,12 @@ else:
 	TOKEN = sys.argv[1].lstrip().rstrip()
 
 START_MESSAGES = ["Koffing-bot, go~!", "Get 'em Koffing-bot~!"]
-HELP = ('Koffing~~ I will listen to any trainer with enough badges!```'
-		'\nCommands (*=requires privilege):'
-		'\n /koffing help'
-		'\n*/koffing mute'
-		'\n*/koffing unmute'
-		'\n*/koffing admin [list] [remove (@user) [@user]] [add (@user) [@user]]'
-		'\n*/koffing play [name]'
-		'\n*/koffing return```'
-		)
 
 SKRONKED = "SKRONK'D"
 
 koffings = dict()
 oks = dict()
 dev = True
-cmd_prefix = '!'
 
 
 # --------------------------------------------------------------------
@@ -45,23 +35,24 @@ logger.warning('#-----------------NEW SESSION-----------------#')
 logger.warning('#------------------' + DateTimeUtils.get_current_date_string() + '-----------------#')
 logger.warning('###############################################')
 # --------------------------------------------------------------------
-# Control lists
-Settings.load_settings()
-
-skronk_times = {}
-task_list = []
-# --------------------------------------------------------------------
-# Finally, the main program!
+# The discord client!
 
 client = discord.Client(intents=discord.Intents.all())
 
-background_tasks = FeatureUtils.get_background_features(client)
+# --------------------------------------------------------------------
+# Control lists & task loading
+FeatureUtils.client = client
+FeatureUtils.reload_tasks()
+
+Settings.load_settings()
+
+skronk_times = {}
 
 
 @client.event
 async def on_ready():
 	"""
-	Called when the client has succesfully started up & logged in with our token
+	Called when the client has successfully started up & logged in with our token
 	"""
 	print('-----------------\nLogged in as {} - {}\n-----------------'.format(client.user.name, client.user.id))
 	if dev:
@@ -78,7 +69,7 @@ async def on_ready():
 				if channel.type == discord.ChannelType.text and ChannelUtils.can_message(guild, channel) and Settings.enabled['greeting']:
 					logger.info('Alerting %s::%s to bot presence', guild.name, channel.id)
 					await client.send_message(channel, START_MESSAGES[randint(0, len(START_MESSAGES) - 1)])
-	logger.info('Koffing-bot is up and running!')
+	logger.warning('Koffing-bot is up and running!')
 
 
 @client.event
@@ -99,11 +90,11 @@ async def on_message(message):
 	guild = message.guild
 	content = (message.content + '.')[:-1].lower()
 	author = message.author
-
-	# Koffing admin and config options
-	if content.startswith(cmd_prefix + 'koffing '):
-		content = content.replace(cmd_prefix + 'koffing', '', 1).lstrip().rstrip()
-		await admin_console(message, content)
+	
+	for task in FeatureUtils.on_msg_features:
+		if task.should_execute(message):
+			await task.execute(message)
+			return
 
 	# Actual commands and features:
 	# Auto pin messages starting with #SotD
@@ -111,7 +102,7 @@ async def on_message(message):
 	# Skronking and skronk management
 
 	# Sotd pinning
-	elif content.startswith('#sotd'):
+	if content.startswith('#sotd'):
 		if not Settings.enabled['sotd_pin']:
 			logger.info("sotd_pin is not enabled")
 			# Don't alert channel to pin disabled
@@ -120,12 +111,12 @@ async def on_message(message):
 		await pin(message)
 
 	# Voting
-	elif content.startswith(cmd_prefix + 'vote'):
+	elif content.startswith(Settings.cmd_prefix + 'vote'):
 		if not Settings.enabled['voting']:
 			await respond(message, "Voting is not enabled", emote="x")
 		else:
 			# check vote timeout & reset if needed
-			content = content.replace(cmd_prefix + 'vote', '', 1).lstrip().rstrip()
+			content = content.replace(Settings.cmd_prefix + 'vote', '', 1).lstrip().rstrip()
 			if content.startswith('leaderboard') or content.startswith('boards') or content.startswith(
 					'leaders') or content.startswith('results'):
 				await respond(message, get_vote_leaderboards(guild, author), True)
@@ -135,8 +126,8 @@ async def on_message(message):
 				await place_vote(message)
 
 	# Skronking
-	elif content.startswith(cmd_prefix + 'skronk'):
-		content = content.replace(cmd_prefix + 'skronk', '', 1).lstrip().rstrip()
+	elif content.startswith(Settings.cmd_prefix + 'skronk'):
+		content = content.replace(Settings.cmd_prefix + 'skronk', '', 1).lstrip().rstrip()
 		if not Settings.enabled['skronk']:
 			logger.info('Skronking is not enabled -- not responding')
 		elif content.startswith('timeout'):
@@ -157,113 +148,16 @@ async def on_message(message):
 		else:
 			await skronk(message)
 
-	elif content.startswith(cmd_prefix + 'remindme'):
+	elif content.startswith(Settings.cmd_prefix + 'remindme'):
 		await remind_me(message)
 
-	elif content.startswith(cmd_prefix + 'hype'):
+	elif content.startswith(Settings.cmd_prefix + 'hype'):
 		await hype(message)
 
 	# Message content scanning
 	else:
 		if not message.author.id == client.user.id:
 			await check_for_koffing(message)
-
-
-async def admin_console(message, content):
-	"""
-	-Koffing admin and config options
-	-Help
-	-Admin management
-	-Mute channels
-	-Change game displayed
-	-Manually save state
-	-Shut down bot
-	"""
-	logger.info("Entered admin console for command {}".format(content))
-
-	guild = message.guild
-	channel = message.channel
-	author = message.author
-
-	if content.startswith('help'):
-		await respond(message, HELP)
-
-	if not privileged(author):
-		await respond(message, "I'm afraid you can't do that {}".format(author.mention), emote="x")
-		return
-
-	# Admin management
-	elif content.startswith('admin'):
-		content = content.replace('admin', '', 1).lstrip().rstrip()
-		if content.startswith('list'):
-			await respond(message, get_admin_list(guild), ignore_silent=True)
-		elif content.startswith('rm') or content.startswith('remove'):
-			await remove_admin(message)
-		elif content.startswith('add'):
-			await add_admin(message)
-
-	# Mute control (channel based). Stops koffing from listening and responding to channels on the list
-	elif content.startswith('mute'):
-		if not Settings.enabled["mute"]:
-			await respond(message, 'Mute is not enabled', emote="x")
-		else:
-			await respond(message, "Koffing...")
-			ChannelUtils.mute(guild, channel)
-
-	# Unmute control. Gets koffing to listen to a channel again
-	elif content.startswith('unmute'):
-		if not Settings.enabled["mute"]:
-			await respond(message, 'Mute is not enabled', emote="x")
-		else:
-			if ChannelUtils.muted(guild, channel):
-				response, emoji = generate_koffing(guild)
-				logger.info('Responding to "%s" (%s) in %s::%s', author.display_name, get_discriminating_name(author),
-							guild.name, channel.id)
-				await respond(message, response)
-			ChannelUtils.unmute(guild, channel)
-
-	# Game display
-	elif content.startswith('game') or content.startswith('play'):
-		if not Settings.enabled["game"]:
-			await respond(message, 'Game is not enabled', emote="x")
-		else:
-			Settings.game_str = message.content[13:].lstrip().rstrip()
-			logger.info("Setting bot to playing '{}'".format(Settings.game_str))
-			await client.change_presence(game=discord.Game(name=Settings.game_str))
-
-	# Manual save
-	elif content.startswith('save'):
-		Settings.save_all()
-		await respond(message, "State saved.")
-
-	# Load settings from disk
-	elif content.startswith('reload'):
-		Settings.load_settings()
-		await respond(message, "Settings reloaded.")
-
-	# Silent mode toggle
-	elif content.startswith('quiet'):
-		Settings.SILENT_MODE = not Settings.SILENT_MODE
-		logger.info("Toggling silent mode to {}".format(Settings.SILENT_MODE))
-		response, emoji = generate_koffing(message.guild)
-		await respond(message, response)
-
-	# Kill bot
-	elif content.startswith('return') or content.startswith('shutdown'):
-		Settings.save_all()
-		await shutdown_message(message)
-		ask_exit()
-
-	elif content.startswith('restart'):
-		Settings.save_all()
-		await shutdown_message(message)
-		ask_restart()
-
-	# Unrecognized command
-	else:
-		logger.info('Unknown command attempt from %s: [%s]', get_discriminating_name(author),
-					(message.content + '.')[:-1].lower())
-		await respond(message, "Skronk!", emote="x")
 
 
 async def on_direct_message(message):
@@ -276,60 +170,13 @@ async def on_direct_message(message):
 	logger.info('Got a DM from %s', get_discriminating_name(message.author))
 	content = message.content
 
-	if content.startswith(cmd_prefix + 'remindme'):
+	if content.startswith(Settings.cmd_prefix + 'remindme'):
 		await remind_me(message)
-	elif content.startswith(cmd_prefix):
-		await admin_console(message, content.replace(cmd_prefix, '', 1))
+	elif content.startswith(Settings.cmd_prefix):
+		console = AdminConsole.get_instance(client)
+		await console.execute(message)
 	else:
 		await direct_response(message, '')
-
-
-async def shutdown_message(message):
-	"""
-	Saves state and then alerts all channels that it is shutting down
-	"""
-	for guild in client.guilds:
-		for channel in guild.channels:
-			if channel.type == discord.ChannelType.text:
-				if ChannelUtils.can_message(guild, channel) and Settings.enabled['greeting']:
-					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
-					await channel.send('Koffing-bot is going back to its pokeball~!')
-				elif message.guild is None or message.channel is None:
-					continue
-				elif guild.id == message.guild.id and channel.id == message.channel.id:
-					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
-					await channel.send('Koffing-bot is going back to its pokeball~!')
-
-
-async def check_for_koffing(message):
-	"""
-	Checks a message content for the word 'koffing' and gets excited if its there
-	"""
-	if 'koffing' in message.content.lower() or client.user.mentioned_in(message):
-		# logger.info('Found a koffing in the message!')
-
-		if ChannelUtils.can_message(message.guild, message.channel) and Settings.enabled["text_response"]:
-			# Quiet skip this, since that's the point of disabled text response
-			if not Settings.SILENT_MODE:
-				message.channel.typing()
-
-			response, emoji = generate_koffing(message.guild)
-			await asyncio.sleep(randint(0, 1))
-			await respond(message, response)
-			if emoji is not None and not Settings.SILENT_MODE:
-				await message.add_reaction(emoji)
-
-		# RETURN HERE TO STOP VOICE FROM HAPPENING BEFORE IT WORKS
-		return
-
-		# need to figure out ffmpeg before this will work
-		if message.author.voice_channel is not None and enabled["voice_response"]:
-			logger.info('Attempting to play in voice channel %s', message.author.voice_channel.id)
-			voice = voice_client_int(message.guild)
-			if voice is None or voice.channel != message.author.voice_channel:
-				voice = client.join_voice_channel(message.author.voice_channel)
-			player = voice.create_ffmpeg_player('koffing.mp3')
-			player.start()
 
 
 async def remind_me(message):
@@ -394,38 +241,6 @@ async def delayed_response(message, content, wait_time=300):
 		await direct_response(message, content)
 
 
-async def add_admin(message):
-	"""
-	Add the mentioned members to the bot admin list
-	"""
-	users = message.mentions
-	channel = message.channel
-	for user in users:
-		user_str = get_discriminating_name(user)
-		if user_str not in Settings.admin_users:
-			msg_str = 'Added {} to the admin list.'.format(user.mention)
-			logger.info('' + msg_str)
-			Settings.admin_users.append(user_str)
-			await respond(message, msg_str)
-	logger.info('Done adding admins.')
-
-
-async def remove_admin(message):
-	"""
-	Remove the mentioned members from the bot admin list
-	"""
-	users = message.mentions
-	channel = message.channel
-	for user in users:
-		user_str = get_discriminating_name(user)
-		if user_str in Settings.admin_users:
-			msg_str = 'Removed {} from the admin list.'.format(user.mention)
-			logger.info('' + msg_str)
-			Settings.admin_users.remove(user_str)
-			await respond(message, msg_str)
-	logger.info('Done removing admins.')
-
-
 async def pin(message):
 	"""
 	Pins a message
@@ -460,7 +275,7 @@ async def place_vote(message):
 		name = get_discriminating_name(member)
 
 		if member.id == message.author.id:
-			await respond(message, cmd_prefix + "skronk {} for voting for yourself...".format(message.author.mention),
+			await respond(message, Settings.cmd_prefix + "skronk {} for voting for yourself...".format(message.author.mention),
 						  True)
 			voted_for_self = True
 			continue  # cannot vote for yourself
@@ -534,7 +349,7 @@ async def skronk(message):
 			skronked.remove(member)
 
 	if skronk_em:
-		await respond(message, cmd_prefix + "skronk {}".format(message.author.mention), True)
+		await respond(message, Settings.cmd_prefix + "skronk {}".format(message.author.mention), True)
 	# Okay, let's do the actual skronking
 	for member in skronked:
 		if member.id in Settings.skronks:
@@ -598,7 +413,7 @@ async def clear_skronks(message, force=False, user_clear=False):
 	if skronk_role in message.author.roles and not force:
 		await respond(message, "You can't do that..", emote="x")
 		if not Settings.SILENT_MODE:
-			await respond(message, cmd_prefix + "skronk {}".format(message.author.mention))
+			await respond(message, Settings.cmd_prefix + "skronk {}".format(message.author.mention))
 		return
 
 	tagged = get_mentioned(message)
@@ -692,19 +507,6 @@ def is_skronked(member, guild, skronk_role):
 		if role == skronk_role:
 			return True
 	return False
-
-
-def get_admin_list(guild):
-	"""
-	Gets a string containing the list of bot admins
-	"""
-	logger.info('Obtaining admin list')
-	admin_str = 'listens to the following trainers:\n'
-	for user in Settings.admin_users:
-		admin = guild.get_member_named(user)
-		if admin is not None:
-			admin_str += ' -' + admin.mention + '\n'
-	return admin_str
 
 
 def get_vote_leaderboards(guild, requester, call_out=True):
@@ -821,100 +623,14 @@ def get_current_votes():
 	return None, None
 
 
-def generate_koffing(guild):
-	"""
-	Returns a string of a happy koffing
-	"""
-	logger.info('Generating koffing string...')
-	koffing_emoji = get_koffing_emoji(guild)
-
-	koffing_core_str = 'K' + randint(1, 2) * 'o' + 'ff' + randint(1, 4) * 'i' + 'ng'
-	if randint(1, 3) == 1:
-		koffing_core_str = koffing_core_str + randint(1, 3) * '?'
-	else:
-		koffing_core_str = koffing_core_str + randint(1, 5) * '!'
-
-	if koffing_emoji is not None:
-		num_koffs = randint(2, 5)
-		koffing_str = str(koffing_emoji)
-		response = num_koffs * koffing_str + ' ' + koffing_core_str + ' ' + num_koffs * koffing_str
-	else:
-		response = koffing_core_str
-	return response, koffing_emoji
-
-
-def stop_tasks():
-	"""
-	Stop all tasks in the task list that we've accumulated so far
-	Then wait for the client to logout
-	"""
-	logger.info('Stopping tasks...')
-
-	for task in background_tasks:
-		task.stopping = True
-
-	for task in task_list:
-		task.cancel()
-
-	end_client_session()
-
-
-def ask_restart():
-	"""
-	Stop all tasks we have spawned before shutting down with return code 0.
-	This signals koffing-ball.py that we should update & restart.
-	"""
-	stop_tasks()
-	logger.info('Restarting...')
-	sys.exit(0)
-
-
-def ask_exit():
-	"""
-	Stop all tasks we have spawned before shutting down with return code 1.
-	This signals koffing-ball.py that we should stop the run loop.
-	"""
-	stop_tasks()
-	logger.info('Stopping...')
-	sys.exit(1)  # return code > 0 means don't restart
-
-
-def end_client_session():
-	"""
-	Shutdown the client and bring koffing offline. Goodbye old friend.
-	"""
-	background_tasks
-	gentle_shutdown = Settings.GENTLE_SHUTDOWN
-
-	# Loop until all our background tasks have completed
-	if gentle_shutdown:
-		logger.warning('Gentle shutdown enabled for {} tasks'.format(len(background_tasks)))
-		done_stopping = False
-		loop_count = 1
-		start_time = DateTimeUtils.now()
-
-		while not done_stopping:
-			done_stopping = True
-			for task in background_tasks:
-				if not task.stopped:
-					done_stopping = False
-
-			if loop_count % 500000000 == 0:
-				now = DateTimeUtils.now()
-				logger.info("Not done stopping after {}".format(str(now - start_time)[0:10]))
-			loop_count += 1
-
-	# Finally, logout
-	logger.info('Stopping main client...')
-	asyncio.ensure_future(client.close())
-
-
+# --------------------------------------------------------------------
 # Add a task to trigger each background feature
 logger.info('Starting background tasks...')
-for task in background_tasks:
+for task in FeatureUtils.bkg_features:
 	client.loop.create_task(task.execute())
 
 
+# --------------------------------------------------------------------
 # Bring koffing to life! Bring him to liiiiiife!!!!
 logger.info('Starting client...')
 client.run(TOKEN)

@@ -11,17 +11,20 @@ def run_and_ret_exit_code(command):
     return ret_value
 
 
-launchCommand = "launchKoffing"
+launch_cmd = "launchKoffing"
 if is_windows:
-    launchCommand = launchCommand + ".bat"
+    launch_cmd = "%s.bat" % launch_cmd
 else:
-    launchCommand = "./%s.sh" % launchCommand
+    launch_cmd = "./%s.sh" % launch_cmd
 
-ret_code = run_and_ret_exit_code(launchCommand)
+koffing_dir = os.path.dirname(os.path.abspath(__file__))
+os.chdir(koffing_dir)
+
+ret_code = run_and_ret_exit_code(launch_cmd)
 while ret_code == 0:
     print("Attempting to pull the latest from git...")
     ret_code = run_and_ret_exit_code("git pull")
     if ret_code > 0:
         print("Update failed. Git pull return code %d" % ret_code)
-    ret_code = run_and_ret_exit_code(launchCommand)
+    ret_code = run_and_ret_exit_code(launch_cmd)
     print("Koffing exited with code %d" % ret_code)

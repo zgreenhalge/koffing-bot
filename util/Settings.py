@@ -7,13 +7,14 @@ FEATURE_FILE_NAME = "feature_toggle.cfg"
 VOTE_FILE_NAME = 'vote_count.txt'
 SKRONK_FILE_NAME = 'skronk.txt'
 
-CONFIG_DIR_PATH = os.path.abspath(os.path.join('config'))
+CONFIG_DIR_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, 'config'))
 CONFIG_FILE_PATH = os.path.join(CONFIG_DIR_PATH, CONFIG_FILE_NAME)
 FEATURE_FILE_PATH = os.path.join(CONFIG_DIR_PATH, FEATURE_FILE_NAME)
 VOTE_FILE_PATH = os.path.join(CONFIG_DIR_PATH, VOTE_FILE_NAME)
 SKRONK_FILE_PATH = os.path.join(CONFIG_DIR_PATH, SKRONK_FILE_NAME)
 
 logger = LoggingUtils.get_logger()
+cmd_prefix = '!'
 
 
 def load_settings():
@@ -23,20 +24,29 @@ def load_settings():
 		logger.info("Creating {}...".format(CONFIG_DIR_PATH))
 		os.makedirs(CONFIG_DIR_PATH)
 
-	logger.info("Loading settings...")
+	logger.info("Loading settings from {}...".format(CONFIG_DIR_PATH))
 	settings = turn_file_to_json(CONFIG_FILE_PATH, False)
 	enabled = turn_file_to_json(FEATURE_FILE_PATH, False)
 	votes = turn_file_to_json(VOTE_FILE_PATH, False)
 	skronks = turn_file_to_json(SKRONK_FILE_PATH, False)
 
-	authorized_guilds = settings['authorized_guilds']
-	authorized_channels = settings['authorized_channels']
-	muted_channels = settings['muted_channels']
-	admin_users = settings['admin_users']
-	game_str = settings['game']
-	SILENT_MODE = settings['silent_mode']
-	SAVE_TIMEOUT = settings['save_timeout']
-	GENTLE_SHUTDOWN = settings['gentle_shutdown']
+	authorized_guilds = get_setting('authorized_guilds', [])
+	authorized_channels = get_setting('authorized_channels', {})
+	muted_channels = get_setting('muted_channels', {})
+	admin_users = get_setting('admin_users', [])
+	game_str = get_setting('game', '')
+	SILENT_MODE = get_setting('silent_mode', False)
+	SAVE_TIMEOUT = get_setting('save_timeout', 3600)
+	GENTLE_SHUTDOWN = get_setting('gentle_shutdown', False)
+
+
+def get_setting(setting, default):
+	global settings
+	if setting in settings:
+		return settings[setting]
+
+	logger.warning("Didn't find a setting for {}, using default {}".format(setting, default))
+	return default
 
 
 def save_config(silent=False):
@@ -55,7 +65,7 @@ def save_config(silent=False):
 
 
 def skronk_timeout():
-	return int(settings['skronk_timeout'])
+	return int(get_setting('skronk_timeout', 300))
 
 
 def save_feature_toggle(silent=False):

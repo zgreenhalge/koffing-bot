@@ -58,8 +58,8 @@ def init_err_handler(handler):
 
 
 # Create log handlers for writing to file, STD and ERR
-# By default loggers will pipe output to an individual file in /koffing-bot/logs created at start up
-# If the directories don't exist, we just make em
+# By default we pipe output to two files in /koffing-bot/logs created at start up
+# There is only ever 1 static logger tho
 
 print("Setting up loggers...")
 

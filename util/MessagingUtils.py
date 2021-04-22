@@ -1,3 +1,6 @@
+import asyncio
+from random import randint
+
 import discord
 
 from util import ChannelUtils, LoggingUtils, Settings
@@ -58,6 +61,28 @@ def get_koffing_emoji(guild):
 	if return_emoji == '':
 		logger.info('Could not find koffing emote')
 	return return_emoji
+
+
+def generate_koffing(guild):
+	"""
+	Returns a string of a happy koffing
+	"""
+	logger.info('Generating koffing string...')
+	koffing_emoji = get_koffing_emoji(guild)
+
+	koffing_core_str = 'K' + randint(1, 2) * 'o' + 'ff' + randint(1, 4) * 'i' + 'ng'
+	if randint(1, 3) == 1:
+		koffing_core_str = koffing_core_str + randint(1, 3) * '?'
+	else:
+		koffing_core_str = koffing_core_str + randint(1, 5) * '!'
+
+	if koffing_emoji is not None:
+		num_koffs = randint(2, 5)
+		koffing_str = str(koffing_emoji)
+		response = num_koffs * koffing_str + ' ' + koffing_core_str + ' ' + num_koffs * koffing_str
+	else:
+		response = koffing_core_str
+	return response, koffing_emoji
 
 
 def get_ok_emoji(guild):
@@ -124,3 +149,52 @@ async def direct_response(message, text):
 		await channel.send(text)
 	# client.send_message(message.author, text)
 	return
+
+
+async def check_for_koffing(message):
+	"""
+	Checks a message content for the word 'koffing' and gets excited if its there
+	"""
+	if 'koffing' in message.content.lower():
+		# logger.info('Found a koffing in the message!')
+
+		if ChannelUtils.can_message(message.guild, message.channel) and Settings.enabled["text_response"]:
+			# Quiet skip this, since that's the point of disabled text response
+			if not Settings.SILENT_MODE:
+				message.channel.typing()
+
+			response, emoji = generate_koffing(message.guild)
+			await asyncio.sleep(randint(0, 1))
+			await respond(message, response)
+			if emoji is not None and not Settings.SILENT_MODE:
+				await message.add_reaction(emoji)
+
+		# RETURN HERE TO STOP VOICE FROM HAPPENING BEFORE IT WORKS
+		return
+
+		# need to figure out ffmpeg before this will work
+		if message.author.voice_channel is not None and enabled["voice_response"]:
+			logger.info('Attempting to play in voice channel %s', message.author.voice_channel.id)
+			voice = voice_client_int(message.guild)
+			if voice is None or voice.channel != message.author.voice_channel:
+				voice = client.join_voice_channel(message.author.voice_channel)
+			player = voice.create_ffmpeg_player('koffing.mp3')
+			player.start()
+
+
+async def shutdown_message(client, message):
+	"""
+	Send a message that the bot is shutting down to
+	all channels it can message as well as the one that triggered the shutdown
+	"""
+	for guild in client.guilds:
+		for channel in guild.channels:
+			if channel.type == discord.ChannelType.text:
+				if ChannelUtils.can_message(guild, channel) and Settings.enabled['greeting']:
+					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
+					await channel.send('Koffing-bot is going back to its pokeball~!')
+				elif message.guild is None or message.channel is None:
+					continue
+				elif guild.id == message.guild.id and channel.id == message.channel.id:
+					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
+					await channel.send('Koffing-bot is going back to its pokeball~!')
