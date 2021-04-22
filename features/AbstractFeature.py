@@ -7,12 +7,11 @@ class AbstractFeature(ABC):
 	"""
 
 	def __init__(self, outer_client):
-		global client
-		client = outer_client
+		self.client = outer_client
 
-	def execute(self, message):
+	async def execute(self, *args):
 		"""
-		Execute this feature against the given message
+		Execute this feature
 		"""
 
 	def serialize(self):

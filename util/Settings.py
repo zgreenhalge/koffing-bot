@@ -17,7 +17,7 @@ logger = LoggingUtils.get_logger()
 
 
 def load_settings():
-	global settings, enabled, votes, skronks, authorized_guilds, authorized_channels, muted_channels, admin_users, game_str, SILENT_MODE, SAVE_TIMEOUT
+	global settings, enabled, votes, skronks, authorized_guilds, authorized_channels, muted_channels, admin_users, game_str, SILENT_MODE, SAVE_TIMEOUT, GENTLE_SHUTDOWN
 
 	if not os.path.exists(CONFIG_DIR_PATH):
 		logger.info("Creating {}...".format(CONFIG_DIR_PATH))
@@ -36,6 +36,7 @@ def load_settings():
 	game_str = settings['game']
 	SILENT_MODE = settings['silent_mode']
 	SAVE_TIMEOUT = settings['save_timeout']
+	GENTLE_SHUTDOWN = settings['gentle_shutdown']
 
 
 def save_config(silent=False):
@@ -44,7 +45,10 @@ def save_config(silent=False):
 	"""
 	contents = {'authorized_channels': authorized_channels, 'authorized_guilds': authorized_guilds,
 				'muted_channels': muted_channels, 'admin_users': admin_users, 'game': game_str,
-				'skronk_timeout': skronk_timeout(), 'silent_mode': SILENT_MODE, 'save_timeout': SAVE_TIMEOUT}
+				'skronk_timeout': skronk_timeout(), 'silent_mode': SILENT_MODE, 'save_timeout': SAVE_TIMEOUT,
+				'gentle_shutdown': GENTLE_SHUTDOWN,
+				}
+
 	if not silent:
 		logger.info('Writing settings to disk...')
 	save_file(CONFIG_FILE_PATH, contents)

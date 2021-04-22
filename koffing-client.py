@@ -6,8 +6,7 @@ from random import randint
 
 from discord import NotFound, Forbidden
 
-
-from util import DateTimeUtils, LoggingUtils
+from util import DateTimeUtils, FeatureUtils
 from util.DateTimeUtils import est_tz
 from util.MessagingUtils import *
 from util.UserUtils import *
@@ -56,17 +55,19 @@ task_list = []
 
 client = discord.Client(intents=discord.Intents.all())
 
+background_tasks = FeatureUtils.get_background_features(client)
+
 
 @client.event
 async def on_ready():
 	"""
 	Called when the client has succesfully started up & logged in with our token
 	"""
-	logger.info('\n-----------------\nLogged in as %s - %s\n-----------------', client.user.name, client.user.id)
+	print('-----------------\nLogged in as {} - {}\n-----------------'.format(client.user.name, client.user.id))
 	if dev:
-		logger.info('Member of the following guilds:')
+		print('Member of the following guilds:')
 		for guild in client.guilds:
-			logger.info('  %s (%s)', guild.name, guild.id)
+			print('  {} ({})'.format(guild.name, guild.id))
 
 	new_game = discord.Game(Settings.game_str)
 	await client.change_presence(activity=new_game)
@@ -95,7 +96,6 @@ async def on_message(message):
 		# logger.info('  Channel is unauthorized - not processing')
 		return
 
-	global game_str
 	guild = message.guild
 	content = (message.content + '.')[:-1].lower()
 	author = message.author
@@ -181,7 +181,6 @@ async def admin_console(message, content):
 	"""
 	logger.info("Entered admin console for command {}".format(content))
 
-	global game_str
 	guild = message.guild
 	channel = message.channel
 	author = message.author
@@ -228,9 +227,9 @@ async def admin_console(message, content):
 		if not Settings.enabled["game"]:
 			await respond(message, 'Game is not enabled', emote="x")
 		else:
-			game_str = message.content[13:].lstrip().rstrip()
-			logger.info("Setting bot to playing '{}'".format(game_str))
-			await client.change_presence(game=discord.Game(name=game_str))
+			Settings.game_str = message.content[13:].lstrip().rstrip()
+			logger.info("Setting bot to playing '{}'".format(Settings.game_str))
+			await client.change_presence(game=discord.Game(name=Settings.game_str))
 
 	# Manual save
 	elif content.startswith('save'):
@@ -283,18 +282,6 @@ async def on_direct_message(message):
 		await admin_console(message, content.replace(cmd_prefix, '', 1))
 	else:
 		await direct_response(message, '')
-
-
-async def timed_save():
-	"""
-	Loops until the bot shuts down, saving state (votes, settings, etc)
-	"""
-	while not client.is_closed:
-		# Sleep first so we don't save as soon as we launch
-		await asyncio.sleep(Settings.SAVE_TIMEOUT)
-		if not client.is_closed:
-			# could have closed between start of loop & sleep
-			Settings.save_all()
 
 
 async def shutdown_message(message):
@@ -856,6 +843,22 @@ def generate_koffing(guild):
 	return response, koffing_emoji
 
 
+def stop_tasks():
+	"""
+	Stop all tasks in the task list that we've accumulated so far
+	Then wait for the client to logout
+	"""
+	logger.info('Stopping tasks...')
+
+	for task in background_tasks:
+		task.stopping = True
+
+	for task in task_list:
+		task.cancel()
+
+	end_client_session()
+
+
 def ask_restart():
 	"""
 	Stop all tasks we have spawned before shutting down with return code 0.
@@ -864,14 +867,6 @@ def ask_restart():
 	stop_tasks()
 	logger.info('Restarting...')
 	sys.exit(0)
-
-
-async def exit():
-	"""
-	Shutdown the client and bring koffing offline. Goodbye old friend.
-	"""
-	logger.info('Stopping main client...')
-	await client.logout()
 
 
 def ask_exit():
@@ -884,17 +879,42 @@ def ask_exit():
 	sys.exit(1)  # return code > 0 means don't restart
 
 
-def stop_tasks():
-	logger.info('Stopping tasks...')
-	global task_list
-	for task in task_list:
-		task.cancel()
-	asyncio.ensure_future(exit())
+def end_client_session():
+	"""
+	Shutdown the client and bring koffing offline. Goodbye old friend.
+	"""
+	background_tasks
+	gentle_shutdown = Settings.GENTLE_SHUTDOWN
+
+	# Loop until all our background tasks have completed
+	if gentle_shutdown:
+		logger.warning('Gentle shutdown enabled for {} tasks'.format(len(background_tasks)))
+		done_stopping = False
+		loop_count = 1
+		start_time = DateTimeUtils.now()
+
+		while not done_stopping:
+			done_stopping = True
+			for task in background_tasks:
+				if not task.stopped:
+					done_stopping = False
+
+			if loop_count % 500000000 == 0:
+				now = DateTimeUtils.now()
+				logger.info("Not done stopping after {}".format(str(now - start_time)[0:10]))
+			loop_count += 1
+
+	# Finally, logout
+	logger.info('Stopping main client...')
+	asyncio.ensure_future(client.close())
 
 
-"""
-Bring koffing to life! Bring him to liiiiiife!!!!
-"""
-logger.info("Starting client...")
-client.loop.create_task(timed_save())
+# Add a task to trigger each background feature
+logger.info('Starting background tasks...')
+for task in background_tasks:
+	client.loop.create_task(task.execute())
+
+
+# Bring koffing to life! Bring him to liiiiiife!!!!
+logger.info('Starting client...')
 client.run(TOKEN)
