@@ -7,7 +7,7 @@ from util.TaskUtils import create_task
 
 client = None
 logger = get_logger()
-bkg_features = on_msg_features = None
+bkg_features = on_msg_features = []
 
 
 def load_features(feature_list):
@@ -72,10 +72,10 @@ def reload_features():
 
 	# Reload modules listed in cfg files
 	logger.info("Loading background features...")
-	bkg_features = load_features(Settings.bkg_feature_list)
+	load_background_features()
 
 	logger.info("Loading on_message features...")
-	on_msg_features = load_features(Settings.on_msg_feature_list)
+	load_on_message_features()
 
 	# Then deserialize pending tasks
 	load_pending_tasks(get_feature_list())
@@ -98,11 +98,24 @@ def start_bkg_feature_tasks():
 
 
 def init_features():
-	global bkg_features, on_msg_features
-	if bkg_features is None:
+	if not bkg_features:
 		logger.info("Loading background features...")
-		bkg_features = load_features(Settings.bkg_feature_list)
+		load_background_features()
 
-	if on_msg_features is None:
+	if not on_msg_features:
 		logger.info("Loading on_message features...")
-		on_msg_features = load_features(Settings.on_msg_feature_list)
+		load_on_message_features()
+
+
+def load_background_features():
+	global bkg_features
+	bkg_features = load_features(full_refs("background", Settings.bkg_feature_list))
+
+
+def load_on_message_features():
+	global on_msg_features
+	on_msg_features = load_features(full_refs("onmessage", Settings.on_msg_feature_list))
+
+
+def full_refs(package, feature_list):
+	return ["features.{0}.{1}.{1}".format(package, name) for name in feature_list]

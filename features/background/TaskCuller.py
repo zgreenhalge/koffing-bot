@@ -8,8 +8,8 @@ class TaskCuller(BackgroundFeature):
 	Sleep for `cull_timeout` seconds, then remove any tasks that return `done() == True` from the running task list
 	After `noop_limit` consecutive no-ops, the sleep duration is increased. The duration is reset to the default when a cull occurs.
 	"""
-	cull_timeout = sleep_time = 15
-	noop_limit = 3
+	cull_timeout = 30
+	noop_limit = 5
 	noop_count = 0
 	was_noop = False
 
@@ -39,8 +39,8 @@ class TaskCuller(BackgroundFeature):
 		self.logger.debug("{} culled. {} running.".format(num_culled, len(running_tasks)))
 
 		if self.noop_count % self.noop_limit == 0 and self.was_noop:
-			self.sleep_time = self.sleep_time * self.noop_limit
-			self.logger.info("{} consecutive no-ops. Sleep increased to {}s".format(self.noop_count, prettify_seconds(self.sleep_time)))
+			self.sleep_timeout = self.sleep_timeout * self.noop_limit
+			self.logger.info("{} consecutive no-ops. Sleep increased to {}s".format(self.noop_count, prettify_seconds(self.sleep_timeout)))
 
 	def configuration(self):
 		self.logger.info("Timeout: {}s | Consecutive no-op backoff: {}".format(prettify_seconds(self.cull_timeout), self.noop_limit))
