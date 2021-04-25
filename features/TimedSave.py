@@ -17,7 +17,7 @@ class TimedSave(BackgroundFeature):
 	async def process(self, *args):
 		slept = 0
 		sleep_interval = Settings.SAVE_TIMEOUT / 60
-		self.logger.info("{} save interval, {} sleep interval".format(
+		self.logger.info("Save interval: {}s | Sleep interval: {}s".format(
 																	prettify_seconds(Settings.SAVE_TIMEOUT),
 																	prettify_seconds(sleep_interval)))
 

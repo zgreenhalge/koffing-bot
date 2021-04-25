@@ -22,9 +22,13 @@ os.chdir(koffing_dir)
 
 ret_code = run_and_ret_exit_code(launch_cmd)
 while ret_code == 0:
+    print()
+    print("Koffing exited with code %d" % ret_code)
+    print(".")
     print("Attempting to pull the latest from git...")
     ret_code = run_and_ret_exit_code("git pull")
     if ret_code > 0:
         print("Update failed. Git pull return code %d" % ret_code)
+    print(".")
+    print("###############################################"*3)
     ret_code = run_and_ret_exit_code(launch_cmd)
-    print("Koffing exited with code %d" % ret_code)

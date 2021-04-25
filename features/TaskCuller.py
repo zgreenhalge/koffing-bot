@@ -1,12 +1,13 @@
 import asyncio
 
 from features.BackgroundFeature import BackgroundFeature
+from util.DateTimeUtils import prettify_seconds
 from util.TaskUtils import running_tasks
 
 
 class TaskCuller(BackgroundFeature):
 
-	cull_timeout = 30
+	cull_timeout = 15
 	noop_limit = 3
 
 	async def process(self, *args):
@@ -17,12 +18,13 @@ class TaskCuller(BackgroundFeature):
 		noop_count = 0
 		sleep_time = self.cull_timeout
 		was_noop = False
+		self.logger.info("Timeout: {}s | Consecutive no-op backoff: {}".format(prettify_seconds(self.cull_timeout), self.noop_limit))
 
 		while not self.stopping:
 
 			if noop_count % self.noop_limit == 0 and was_noop:
 				sleep_time = sleep_time * self.cull_timeout
-				self.logger.debug("Sleep increased to {}s".format(sleep_time))
+				self.logger.info("{} consecutive no-ops. Sleep increased to {}s".format(noop_count, prettify_seconds(sleep_time)))
 			await asyncio.sleep(sleep_time)
 
 			complete = []
@@ -44,4 +46,4 @@ class TaskCuller(BackgroundFeature):
 				noop_count = 0
 				was_noop = False
 
-			self.logger.info("{} culled. {} running.".format(num_culled, len(running_tasks)))
+			self.logger.debug("{} culled. {} running.".format(num_culled, len(running_tasks)))

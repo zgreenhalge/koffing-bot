@@ -20,7 +20,7 @@ cmd_prefix = '!'
 settings = enabled = votes = skronks =\
 		authorized_guilds = authorized_channels = muted_channels =\
 		admin_users = game_str = bkg_feature_list = on_msg_feature_list =\
-		SILENT_MODE = SAVE_TIMEOUT = GENTLE_SHUTDOWN = None
+		SILENT_MODE = SAVE_TIMEOUT = None
 
 
 def load_settings():
@@ -28,7 +28,7 @@ def load_settings():
 	global settings, enabled, votes, skronks,\
 		authorized_guilds, authorized_channels, muted_channels,\
 		admin_users, game_str,\
-		SILENT_MODE, SAVE_TIMEOUT, GENTLE_SHUTDOWN
+		SILENT_MODE, SAVE_TIMEOUT
 
 	if not os.path.exists(CONFIG_DIR_PATH):
 		logger.info("Creating {}...".format(CONFIG_DIR_PATH))
@@ -47,7 +47,6 @@ def load_settings():
 	game_str = get_value_or_default(settings, 'game', '')
 	SILENT_MODE = get_value_or_default(settings, 'silent_mode', False)
 	SAVE_TIMEOUT = get_value_or_default(settings, 'save_timeout', 3600)
-	GENTLE_SHUTDOWN = get_value_or_default(settings, 'gentle_shutdown', False)
 
 	load_features()
 
@@ -83,7 +82,6 @@ def save_config(silent=False):
 	contents = {'authorized_channels': authorized_channels, 'authorized_guilds': authorized_guilds,
 				'muted_channels': muted_channels, 'admin_users': admin_users, 'game': game_str,
 				'skronk_timeout': skronk_timeout(), 'silent_mode': SILENT_MODE, 'save_timeout': SAVE_TIMEOUT,
-				'gentle_shutdown': GENTLE_SHUTDOWN,
 				}
 	if not silent:
 		logger.info('Writing settings to disk...')

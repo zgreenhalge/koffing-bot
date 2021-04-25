@@ -54,11 +54,11 @@ async def on_ready():
 	"""
 	Called when the client has successfully started up & logged in with our token
 	"""
-	print('-----------------\nLogged in as {} - {}\n-----------------'.format(client.user.name, client.user.id))
+	logger.debug('-----------------\nLogged in as {} - {}\n-----------------'.format(client.user.name, client.user.id))
 	if dev:
-		print('Member of the following guilds:')
+		logger.debug('Member of the following guilds:')
 		for guild in client.guilds:
-			print('  {} ({})'.format(guild.name, guild.id))
+			logger.debug('  {} ({})'.format(guild.name, guild.id))
 
 	# Feature related loading happens once the client is ready
 	# Otherwise the asyncio event loop isn't initialized for us in time
