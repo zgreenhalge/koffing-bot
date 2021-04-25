@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from discord import NotFound, Forbidden
 
-from features.AdminConsole import AdminConsole
+from features.onmessage.AdminConsole import AdminConsole
 from util import DateTimeUtils, FeatureUtils, ClientUtils
 from util.FeatureUtils import start_bkg_feature_tasks, load_pending_tasks, get_feature_list, init_features
 from util.TaskUtils import create_task

@@ -1,6 +1,6 @@
 import discord
 
-from features.OnMessageFeature import OnMessageFeature
+from features.onmessage.OnMessageFeature import OnMessageFeature
 from util import Settings, FeatureUtils
 from util.ChannelUtils import mute, muted, unmute
 from util.ClientUtils import ask_exit, ask_restart

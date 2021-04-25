@@ -1,6 +1,4 @@
-import asyncio
-
-from features.BackgroundFeature import BackgroundFeature
+from features.background.BackgroundFeature import BackgroundFeature
 from util import Settings
 from util.DateTimeUtils import prettify_seconds
 

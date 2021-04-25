@@ -1,6 +1,6 @@
 from pydoc import locate
 
-from features.BackgroundFeature import BackgroundFeature
+from features.background.BackgroundFeature import BackgroundFeature
 from util import Settings
 from util.LoggingUtils import get_logger
 from util.TaskUtils import create_task
