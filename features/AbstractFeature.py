@@ -1,5 +1,7 @@
 from abc import ABC
 
+from util import LoggingUtils
+
 
 class AbstractFeature(ABC):
 	"""
@@ -8,18 +10,19 @@ class AbstractFeature(ABC):
 
 	def __init__(self, outer_client):
 		self.client = outer_client
+		self.logger = LoggingUtils.get_logger()
 
 	async def execute(self, *args):
 		"""
 		Execute this feature
 		"""
 
-	def serialize(self):
+	async def serialize(self):
 		"""
 		Write any pending tasks to disk
 		"""
 
-	def deserialize(self):
+	async def deserialize(self):
 		"""
 		Read any leftover tasks from disk and restart processing
 		"""

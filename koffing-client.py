@@ -5,8 +5,9 @@ from datetime import timedelta
 from discord import NotFound, Forbidden
 
 from features.AdminConsole import AdminConsole
-from util import DateTimeUtils, FeatureUtils
-from util.ClientUtils import task_list
+from util import DateTimeUtils, FeatureUtils, ClientUtils
+from util.FeatureUtils import start_bkg_feature_tasks, load_pending_tasks, get_feature_list, init_features
+from util.TaskUtils import create_task
 from util.DateTimeUtils import est_tz
 from util.MessagingUtils import *
 from util.UserUtils import *
@@ -41,10 +42,9 @@ client = discord.Client(intents=discord.Intents.all())
 
 # --------------------------------------------------------------------
 # Control lists & task loading
-FeatureUtils.client = client
-FeatureUtils.reload_tasks()
-
 Settings.load_settings()
+
+FeatureUtils.client = client
 
 skronk_times = {}
 
@@ -59,6 +59,12 @@ async def on_ready():
 		print('Member of the following guilds:')
 		for guild in client.guilds:
 			print('  {} ({})'.format(guild.name, guild.id))
+
+	# Feature related loading happens once the client is ready
+	# Otherwise the asyncio event loop isn't initialized for us in time
+	init_features()
+	load_pending_tasks(get_feature_list())
+	start_bkg_feature_tasks()
 
 	new_game = discord.Game(Settings.game_str)
 	await client.change_presence(activity=new_game)
@@ -213,7 +219,7 @@ async def remind_me(message):
 	if message.guild is not None:
 		await koffing_reaction(message)
 
-	task_list.append(client.loop.create_task(delayed_response(message, "This is your reminder from {}:\n\n{}".format(current_time, contents[2]), remind_time)))
+	create_task(delayed_response(message, "This is your reminder from {}:\n\n{}".format(current_time, contents[2]), remind_time))
 	logger.info('Reminder generated for %s in %s seconds (%s)', get_discriminating_name(message.author), remind_time, wakeup)
 
 	return
@@ -363,7 +369,7 @@ async def skronk(message):
 			skronk_times[str(member.id)] = int(skronk_times[str(member.id)]) + int(Settings.skronk_timeout())
 		else:
 			skronk_times[str(member.id)] = int(Settings.skronk_timeout())
-			task_list.append(client.loop.create_task(remove_skronk(member, message)))
+			create_task(remove_skronk(member, message))
 		await member.add_roles(skronk_role)
 		await respond(message, "{} got SKRONK'D!!!! ({}m left)".format(member.mention, str(get_skronk_time(member.id))))
 
@@ -386,7 +392,7 @@ async def remove_skronk(member, message, silent=False, wait=True, absolute=False
 		else:
 			logger.info('Skronk has not yet expired!')
 			await respond(message, "Only {}m of shame left {}".format(str(get_skronk_time(member.id)), member.mention))
-			task_list.append(client.loop.create_task(remove_skronk(member, message, silent, wait, absolute)))
+			create_task(remove_skronk(member, message, silent, wait, absolute))
 			return
 
 	skronk_role = get_skronk_role(message.guild)
@@ -624,13 +630,8 @@ def get_current_votes():
 
 
 # --------------------------------------------------------------------
-# Add a task to trigger each background feature
-logger.info('Starting background tasks...')
-for task in FeatureUtils.bkg_features:
-	client.loop.create_task(task.execute())
-
-
-# --------------------------------------------------------------------
 # Bring koffing to life! Bring him to liiiiiife!!!!
 logger.info('Starting client...')
 client.run(TOKEN)
+logger.info('Client exited successfully. Goodnight~')
+sys.exit(ClientUtils.exit_value)

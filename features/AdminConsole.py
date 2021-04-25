@@ -1,9 +1,10 @@
 import discord
 
 from features.OnMessageFeature import OnMessageFeature
-from util import Settings
+from util import Settings, FeatureUtils
 from util.ChannelUtils import mute, muted, unmute
 from util.ClientUtils import ask_exit, ask_restart
+from util.FeatureUtils import reload_features
 from util.LoggingUtils import get_logger
 from util.MessagingUtils import generate_koffing, shutdown_message, respond
 from util.UserUtils import privileged, get_discriminating_name
@@ -34,11 +35,19 @@ class AdminConsole(OnMessageFeature):
 			AdminConsole(client)
 		return AdminConsole.__instance
 
+	@staticmethod
+	def clear_instance():
+		AdminConsole.__instance = None
+
 	def should_execute(self, message):
 		run = message.content.startswith(Settings.cmd_prefix + 'koffing ')
 		return run
 
 	async def execute(self, *args):
+		if args is None or len(args) == 0:
+			self.logger.warning("No arguments passed!")
+			return
+
 		await self.process(args[0])
 
 # Implementation below ------------------------------------------------------------
@@ -95,13 +104,15 @@ class AdminConsole(OnMessageFeature):
 		-Shut down bot
 		"""
 		# First, strip out any prefixes used to trigger the command
+		# Normally, we expect it to start with '!koffing'
+		# But admin console has s special DM shortcut, so prefix could be just '!' as well
 		content = message.content
 		if content.startswith(Settings.cmd_prefix + 'koffing'):
 			content = content.replace(Settings.cmd_prefix + 'koffing', '', 1).lstrip().rstrip()
 		elif content.startswith(Settings.cmd_prefix):
 			content = content.replace(Settings.cmd_prefix, '', 1).lstrip().rstrip()
 
-		self.logger.info("Entered admin console for command {}".format(content))
+		self.logger.debug("Entered admin console for command {}".format(content))
 
 		guild = message.guild
 		channel = message.channel
@@ -162,11 +173,10 @@ class AdminConsole(OnMessageFeature):
 
 		# Reload listed tasks & load settings from disk
 		elif content.startswith('reload'):
-			# Commented out until koffing-client becomes it's own class
-			# And can be responsible for this nonsense, abstracting the dependency
-			# reload_tasks()
 			Settings.load_settings()
-			await respond(message, "Settings reloaded.")
+			reload_features()
+			self.logger.info("Reload complete!")
+			await respond(message, "Reload successful.")
 
 		# Silent mode toggle
 		elif content.startswith('quiet'):
@@ -185,6 +195,12 @@ class AdminConsole(OnMessageFeature):
 			Settings.save_all()
 			await shutdown_message(self.client, message)
 			ask_restart(self.client)
+
+		elif content.startswith('stop'):
+			for task in FeatureUtils.bkg_features:
+				await task.serialize()
+				if not task.stopping:
+					task.stopping = True
 
 		# Unrecognized command
 		else:

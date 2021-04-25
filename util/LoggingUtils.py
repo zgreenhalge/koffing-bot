@@ -41,10 +41,11 @@ class WarningFilter(logging.Filter):
 LOG_FORMAT = '[%(asctime)-15s] [%(levelname)+7s] [%(threadName)+10s] [%(thread)d] [%(module)s.%(funcName)s] - %(message)s'
 date_str = DateTimeUtils.get_current_date_string()
 formatter = logging.Formatter(LOG_FORMAT)
+level = logging.DEBUG
 
 
 def init_std_handler(handler):
-	handler.setLevel(logging.DEBUG)
+	handler.setLevel(level)
 	handler.addFilter(InfoFilter())
 	handler.setFormatter(formatter)
 	return handler
@@ -81,7 +82,7 @@ err_file_handler = logging.FileHandler(os.path.join(log_dir, 'ERR_' + date_str +
 init_err_handler(err_file_handler)
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(level)
 logger.addHandler(std_stream_handler)
 logger.addHandler(std_file_handler)
 logger.addHandler(err_stream_handler)

@@ -1,6 +1,6 @@
 import pytz
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 date_format = '%Y-%m-%d'
 pretty_date_format = '%a %b %d %Y %I:%M:%S %p'
@@ -38,3 +38,7 @@ def get_current_date_string(format_str=date_format):
 
 def now():
 	return datetime.now(tz=est_tz)
+
+
+def prettify_seconds(seconds):
+	return str(timedelta(seconds=seconds))
