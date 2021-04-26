@@ -12,9 +12,21 @@ class TaskCuller(BackgroundFeature):
 	noop_limit = 5
 	noop_count = 0
 	was_noop = False
+	__instance = None
 
 	def __init__(self, client):
 		super().__init__(client, self.cull_timeout)
+		TaskCuller.__instance = self
+
+	@staticmethod
+	def get_instance(client):
+		if TaskCuller.__instance is None:
+			TaskCuller(client)
+		return TaskCuller.__instance
+
+	@staticmethod
+	def clear_instance():
+		TaskCuller.__instance = None
 
 	async def process(self, *args):
 		complete = []
@@ -35,12 +47,26 @@ class TaskCuller(BackgroundFeature):
 		else:
 			self.noop_count = 0
 			self.was_noop = False
+			if self.sleep_timeout != self.cull_timeout:
+				self.sleep_timeout = self.cull_timeout
+				self.logger.info("Sleep reset to {} ".format(prettify_seconds(self.sleep_timeout)))
 
 		self.logger.debug("{} culled. {} running.".format(num_culled, len(running_tasks)))
 
-		if self.noop_count % self.noop_limit == 0 and self.was_noop:
+		if self.should_backdown() and self.was_noop:
 			self.sleep_timeout = self.sleep_timeout * self.noop_limit
-			self.logger.info("{} consecutive no-ops. Sleep increased to {}s".format(self.noop_count, prettify_seconds(self.sleep_timeout)))
+			self.logger.info("{} consecutive no-ops. Sleep increased to {}".format(self.noop_count, prettify_seconds(self.sleep_timeout)))
 
 	def configuration(self):
-		self.logger.info("Timeout: {}s | Consecutive no-op backoff: {}".format(prettify_seconds(self.cull_timeout), self.noop_limit))
+		self.logger.info("Timeout: {} | Consecutive no-op backoff: {}".format(prettify_seconds(self.cull_timeout), self.noop_limit))
+
+	def backdown_scale(self):
+		ret = self.noop_count / self.noop_limit
+		self.logger.debug("Scale: {}".format(ret))
+		return ret
+
+	def should_backdown(self):
+		return self.noop_count % self.noop_limit == 0
+
+	def has_backed_down(self):
+		return self.noop_count >= self.noop_limit

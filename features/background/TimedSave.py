@@ -1,37 +1,34 @@
 from features.background.BackgroundFeature import BackgroundFeature
+from features.background.TaskCuller import TaskCuller
 from util import Settings
 from util.DateTimeUtils import prettify_seconds
 
 
 class TimedSave(BackgroundFeature):
 	"""
-	Every SAVE_TIMEOUT seconds, trigger Settings.save_all()
-	Every 1/60 of the save interval check if we should shut down.
+	Regularly trigger Settings.save_all()
 	Default 3600 second (1hr) interval.
+	Backs off in tandem with TaskCuller, using background tasks as an indication of activity
 	"""
-	slept = 0
 
 	def __init__(self, client):
-		super().__init__(client, Settings.SAVE_TIMEOUT/60)
+		super().__init__(client, Settings.SAVE_TIMEOUT)
 
 	async def process(self, *args):
-		self.slept += self.sleep_timeout
-		ratio = self.slept / Settings.SAVE_TIMEOUT
+		Settings.save_all()
 
-		# Report in every 1/4 of interval
-		if ratio % 0.25 == 0:
-			self.logger.debug("Slept {} so far - {}%".format(prettify_seconds(self.slept), ratio*100))
-
-		# If our accumulated sleep exceeds the save timeout,
-		# trigger a save and reset our accumulated sleep time
-		if ratio >= 1:
-			Settings.save_all()
-			self.slept = 0
+		culler = TaskCuller.get_instance(self.client)
+		if culler.has_backed_down():
+			self.sleep_timeout = self.sleep_timeout * culler.backdown_scale()
+			self.logger.info("No activity detected. Sleep increased to {}".format(prettify_seconds(self.sleep_timeout)))
+		else:
+			self.sleep_timeout = Settings.SAVE_TIMEOUT
+			self.logger("Sleep reset to {} ".format(prettify_seconds(self.sleep_timeout)))
 
 	def shutdown(self):
 		self.logger.debug("Stopping: {} Stopped: {}".format(self.stopping, self.stopped))
 
 	def configuration(self):
-		self.logger.info("Save interval: {}s | Sleep interval: {}s".format(
+		self.logger.info("Save interval: {} | Sleep interval: {}".format(
 																		prettify_seconds(Settings.SAVE_TIMEOUT),
 																		prettify_seconds(self.sleep_timeout)))
