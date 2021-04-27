@@ -124,6 +124,7 @@ async def respond(message, text, ignore_silent=False, emote="koffing"):
 			await negative_reaction(message)
 	else:
 		# Standard respond
+		message.channel.typing()
 		if not ChannelUtils.muted(message.guild, message.channel):
 			logger.info('Responding to "%s" (%s) in %s::%s', message.author.display_name,
 						get_discriminating_name(message.author), message.guild.name, message.channel.id)
@@ -151,37 +152,6 @@ async def direct_response(message, text):
 	return
 
 
-async def check_for_koffing(message):
-	"""
-	Checks a message content for the word 'koffing' and gets excited if its there
-	"""
-	if 'koffing' in message.content.lower():
-		# logger.info('Found a koffing in the message!')
-
-		if ChannelUtils.can_message(message.guild, message.channel) and Settings.enabled["text_response"]:
-			# Quiet skip this, since that's the point of disabled text response
-			if not Settings.SILENT_MODE:
-				message.channel.typing()
-
-			response, emoji = generate_koffing(message.guild)
-			await asyncio.sleep(randint(0, 1))
-			await respond(message, response)
-			if emoji is not None and not Settings.SILENT_MODE:
-				await message.add_reaction(emoji)
-
-		# RETURN HERE TO STOP VOICE FROM HAPPENING BEFORE IT WORKS
-		return
-
-		# need to figure out ffmpeg before this will work
-		if message.author.voice_channel is not None and enabled["voice_response"]:
-			logger.info('Attempting to play in voice channel %s', message.author.voice_channel.id)
-			voice = voice_client_int(message.guild)
-			if voice is None or voice.channel != message.author.voice_channel:
-				voice = client.join_voice_channel(message.author.voice_channel)
-			player = voice.create_ffmpeg_player('koffing.mp3')
-			player.start()
-
-
 async def shutdown_message(client, message):
 	"""
 	Send a message that the bot is shutting down to
@@ -198,3 +168,35 @@ async def shutdown_message(client, message):
 				elif guild.id == message.guild.id and channel.id == message.channel.id:
 					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
 					await channel.send('Koffing-bot is going back to its pokeball~!')
+
+
+async def delayed_response(message, content, wait_time=300):
+	"""
+	Sleeps for time seconds and then responds to the message author with the given content
+	"""
+	await asyncio.sleep(int(float(wait_time)))
+	await direct_response(message, content)
+
+
+def get_mentioned(message, everyone=True):
+	"""
+	Gets everyone mentioned in a message. Aggregates members from all roles mentioned
+	"""
+	mentioned = []
+	if len(message.mentions) > 0:
+		for member in message.mentions:
+			mentioned.append(member)
+
+	if len(message.role_mentions) > 0:
+		for role in message.role_mentions:
+			for member in members_of_role(message.guild, role):
+				mentioned.append(member)
+
+	if message.mention_everyone and everyone:
+		for member in message.guild.members:
+			if member.permissions_in(message.channel).read_messages:
+				mentioned.append(member)
+
+	seen = set()
+	mentioned = [x for x in mentioned if x not in seen and not seen.add(x)]  # Remove duplicates
+	return mentioned

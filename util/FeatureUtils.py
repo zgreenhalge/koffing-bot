@@ -22,6 +22,7 @@ def load_features(feature_list):
 
 	for class_name in feature_list:
 		feature = locate(class_name)
+
 		if feature is not None:
 			logger.debug("Loaded {}".format(feature))
 			ret.append(feature(client))

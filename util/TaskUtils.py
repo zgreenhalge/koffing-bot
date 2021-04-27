@@ -1,24 +1,10 @@
 import asyncio
 
-from asyncio import InvalidStateError
 from util.LoggingUtils import get_logger
 
 running_tasks = []
 logger = get_logger()
 shutdown_timeout = 60
-
-
-def get_task_value(task):
-	"""
-	Get the result from a given running asyncio Task
-	If the Task is listed in our running_tasks, remove it
-	"""
-	logger.debug("Getting result for {}".format(task.get_coro().__qualname__))
-	result = task.result()  # Throws out if the result isn't available, preventing us from removing still running tasks
-
-	if task in running_tasks:
-		running_tasks.remove(task)
-	return result
 
 
 def create_task(coroutine, name=None):
@@ -46,6 +32,21 @@ def stop_running_tasks():
 	stop_tasks(running_tasks)
 
 
+def stop_task(task):
+	if task.done():
+		logger.debug("{} completed successfully.".format(task.get_name()))
+		ret = 1
+	else:
+		logger.debug("{} not complete, cancelling.".format(task.get_name()))
+		task.cancel()  # Causes CancelledError during next iteration of event loop
+		ret = 0
+
+	if task in running_tasks:
+		running_tasks.remove(task)
+
+	return ret
+
+
 def stop_tasks(task_list):
 	"""
 	Cancel any incomplete tasks in the list
@@ -53,11 +54,6 @@ def stop_tasks(task_list):
 	num_completed = 0
 
 	for task in task_list:
-		if task.done():
-			logger.debug("{} completed successfully.".format(task.get_name()))
-			num_completed += 1
-		else:
-			logger.debug("{} not complete, cancelling.".format(task.get_name()))
-			task.cancel()  # Causes CancelledError during next iteration of event loop
+		num_completed += stop_task(task)
 
 	logger.info("{} tasks completed, {} cancelled.".format(num_completed, len(task_list) - num_completed))
