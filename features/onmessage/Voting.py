@@ -2,10 +2,10 @@ from datetime import timedelta
 from time import strptime
 
 from features.onmessage.OnMessageFeature import OnMessageFeature
-from util.DateTimeUtils import date_to_string, now, string_to_date, pretty_date_format
-from util.MessagingUtils import respond, get_mentioned
+from util.DateTime import date_to_string, now, string_to_date, pretty_date_format
+from util.Messaging import respond, get_mentioned
 from util.Settings import enabled, cmd_prefix, votes
-from util.UserUtils import get_discriminating_name, get_pretty_name
+from util.User import get_discriminating_name, get_pretty_name
 
 
 def get_current_votes():

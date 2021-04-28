@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 
-from util import DateTimeUtils
+from util import DateTime
 
 
 class StreamToLogger(object):
@@ -39,9 +39,12 @@ class WarningFilter(logging.Filter):
 
 
 LOG_FORMAT = '[%(asctime)-15s] [%(levelname)+7s] [%(threadName)+10s] [%(thread)d] [%(module)s.%(funcName)s] - %(message)s'
-date_str = DateTimeUtils.get_current_date_string()
+date_str = DateTime.get_current_date_string()
 formatter = logging.Formatter(LOG_FORMAT)
 level = logging.INFO
+
+
+# logging.basicConfig(level=logging.INFO)
 
 
 def init_std_handler(handler):

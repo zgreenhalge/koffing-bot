@@ -3,12 +3,12 @@ from random import randint
 
 import discord
 
-from util import ChannelUtils, LoggingUtils, Settings
-from util.ChannelUtils import can_message
-from util.RoleUtils import members_of_role
-from util.UserUtils import get_discriminating_name
+from util import Channel, Logging, Settings
+from util.Channel import can_message
+from util.Role import members_of_role
+from util.User import get_discriminating_name
 
-logger = LoggingUtils.get_logger()
+logger = Logging.get_logger()
 
 START_MESSAGES = ["Koffing-bot, go~!", "Get 'em Koffing-bot~!"]
 STOP_MESSAGES = ["KOffing-bot, return!", "Koffing-bot, come back!"]
@@ -130,7 +130,7 @@ async def respond(message, text, ignore_silent=False, emote="koffing"):
 	else:
 		# Standard respond
 		message.channel.typing()
-		if not ChannelUtils.muted(message.guild, message.channel):
+		if not Channel.muted(message.guild, message.channel):
 			logger.info('Responding to "%s" (%s) in %s::%s', message.author.display_name,
 						get_discriminating_name(message.author), message.guild.name, message.channel.id)
 			if Settings.SILENT_MODE:
@@ -165,7 +165,7 @@ async def shutdown_message(client, message):
 	for guild in client.guilds:
 		for channel in guild.channels:
 			if channel.type == discord.ChannelType.text:
-				if ChannelUtils.can_message(guild, channel) and Settings.enabled['greeting']:
+				if Channel.can_message(guild, channel) and Settings.enabled['greeting']:
 					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
 					await channel.send(START_MESSAGES[randint(0, len(START_MESSAGES) - 1)])
 				elif message.guild is None or message.channel is None:

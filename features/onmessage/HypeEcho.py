@@ -1,5 +1,5 @@
 from features.onmessage.OnMessageFeature import OnMessageFeature
-from util.MessagingUtils import respond
+from util.Messaging import respond
 from util.Settings import cmd_prefix
 
 

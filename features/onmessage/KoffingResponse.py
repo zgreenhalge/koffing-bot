@@ -1,6 +1,6 @@
 from features.onmessage.OnMessageFeature import OnMessageFeature
-from util.ChannelUtils import can_message
-from util.MessagingUtils import generate_koffing, respond
+from util.Channel import can_message
+from util.Messaging import generate_koffing, respond
 from util.Settings import enabled, SILENT_MODE
 
 

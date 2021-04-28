@@ -1,6 +1,6 @@
 import os
-from util import LoggingUtils
-from util.FileUtils import turn_file_to_json, save_file, CONFIG_DIR_PATH
+from util import Logging
+from util.File import turn_file_to_json, save_file, CONFIG_DIR_PATH
 
 CONFIG_FILE_NAME = 'koffing.cfg'
 FEATURE_FILE_NAME = "feature_toggle.cfg"
@@ -15,7 +15,7 @@ SKRONK_FILE_PATH = os.path.join(CONFIG_DIR_PATH, SKRONK_FILE_NAME)
 FEATURE_PATH = os.path.join(CONFIG_DIR_PATH, FEATURE_NAME)
 
 
-logger = LoggingUtils.get_logger()
+logger = Logging.get_logger()
 cmd_prefix = '!'
 settings = enabled = votes = skronks =\
 		authorized_guilds = authorized_channels = muted_channels =\

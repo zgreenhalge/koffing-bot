@@ -1,6 +1,6 @@
 from features.background.BackgroundFeature import BackgroundFeature
-from util.DateTimeUtils import prettify_seconds
-from util.TaskUtils import running_tasks
+from util.DateTime import prettify_seconds
+from util.Task import running_tasks
 
 
 class TaskCuller(BackgroundFeature):

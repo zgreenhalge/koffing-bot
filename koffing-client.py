@@ -2,10 +2,10 @@ import sys
 
 from features.onmessage.AdminConsole import AdminConsole
 from features.onmessage.RemindMe import create_reminder
-from util import DateTimeUtils, FeatureUtils, ClientUtils
-from util.FeatureUtils import start_bkg_feature_tasks, load_pending_tasks, get_feature_list, init_features
-from util.MessagingUtils import *
-from util.UserUtils import *
+from util import DateTime, Feature, Client
+from util.Feature import start_bkg_feature_tasks, load_pending_tasks, get_feature_list, init_features
+from util.Messaging import *
+from util.User import *
 
 if len(sys.argv) < 2:
 	TOKEN = input('Please enter token: ')
@@ -20,11 +20,11 @@ dev = True
 # --------------------------------------------------------------------
 # Logging set up
 
-logger = LoggingUtils.get_logger()
+logger = Logging.get_logger()
 
 logger.warning('###############################################')
 logger.warning('#-----------------NEW SESSION-----------------#')
-logger.warning('#------------------' + DateTimeUtils.get_current_date_string() + '-----------------#')
+logger.warning('#------------------' + DateTime.get_current_date_string() + '-----------------#')
 logger.warning('###############################################')
 # --------------------------------------------------------------------
 # The discord client!
@@ -48,7 +48,7 @@ async def on_ready():
 			logger.debug('  {} ({})'.format(guild.name, guild.id))
 
 	# Feature related loading happens once the event loop is initialized
-	FeatureUtils.client = client
+	Feature.client = client
 	init_features()
 	load_pending_tasks(get_feature_list())
 	start_bkg_feature_tasks()
@@ -72,10 +72,10 @@ async def on_message(message):
 	logger.info('Received message from "%s" (%s) in %s::%s', get_preferred_name(message.author),
 				get_discriminating_name(message.author), message.guild.name, message.channel.name)
 
-	if not ChannelUtils.authorized(message.guild, message.channel):
+	if not Channel.authorized(message.guild, message.channel):
 		return
 
-	for task in FeatureUtils.on_msg_features:
+	for task in Feature.on_msg_features:
 		if task.should_execute(message):
 			logger.debug("Executing {}".format(type(task).__name__))
 			await task.execute(message)
@@ -106,4 +106,4 @@ async def on_direct_message(message):
 logger.info('Starting client...')
 client.run(TOKEN)
 logger.info('Client exited successfully. Goodnight~')
-sys.exit(ClientUtils.exit_value)
+sys.exit(Client.exit_value)

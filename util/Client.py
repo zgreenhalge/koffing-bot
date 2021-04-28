@@ -1,8 +1,8 @@
 import asyncio
 
-from util import FeatureUtils
-from util.TaskUtils import stop_running_tasks
-from util.LoggingUtils import get_logger
+from util import Feature
+from util.Task import stop_running_tasks
+from util.Logging import get_logger
 
 logger = get_logger()
 exit_value = 1
@@ -37,7 +37,7 @@ def ask_exit(client):
 
 
 def serialize_background_features():
-	for feature in FeatureUtils.bkg_features:
+	for feature in Feature.bkg_features:
 		# Do not use TaskUtils.create_task() to avoid serializiation being short-circuited
 		logger.debug("Creating task for {}.serialize()".format(type(feature).__name__))
 		asyncio.create_task(feature.serialize())

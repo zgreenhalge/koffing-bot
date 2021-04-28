@@ -1,7 +1,7 @@
 from discord import Forbidden, NotFound
 
 from features.onmessage.OnMessageFeature import OnMessageFeature
-from util.MessagingUtils import koffing_reaction
+from util.Messaging import koffing_reaction
 from util.Settings import enabled
 
 

@@ -1,7 +1,7 @@
 import json
 import os
 
-from util.LoggingUtils import get_logger
+from util.Logging import get_logger
 
 logger = get_logger()
 

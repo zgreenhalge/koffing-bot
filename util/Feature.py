@@ -2,8 +2,8 @@ from pydoc import locate
 
 from features.background.BackgroundFeature import BackgroundFeature
 from util import Settings
-from util.LoggingUtils import get_logger
-from util.TaskUtils import create_task
+from util.Logging import get_logger
+from util.Task import create_task
 
 client = None
 logger = get_logger()

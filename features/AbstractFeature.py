@@ -1,6 +1,6 @@
 from abc import ABC
 
-from util import LoggingUtils
+from util import Logging
 
 
 class AbstractFeature(ABC):
@@ -10,7 +10,7 @@ class AbstractFeature(ABC):
 
 	def __init__(self, outer_client):
 		self.client = outer_client
-		self.logger = LoggingUtils.get_logger()
+		self.logger = Logging.get_logger()
 
 	async def execute(self, *args):
 		"""

@@ -1,13 +1,13 @@
 import discord
 
 from features.onmessage.OnMessageFeature import OnMessageFeature
-from util import Settings, FeatureUtils
-from util.ChannelUtils import mute, muted, unmute
-from util.ClientUtils import ask_exit, ask_restart
-from util.FeatureUtils import reload_features
-from util.LoggingUtils import get_logger
-from util.MessagingUtils import generate_koffing, shutdown_message, respond
-from util.UserUtils import privileged, get_discriminating_name
+from util import Settings, Feature
+from util.Channel import mute, muted, unmute
+from util.Client import ask_exit, ask_restart
+from util.Feature import reload_features
+from util.Logging import get_logger
+from util.Messaging import generate_koffing, shutdown_message, respond
+from util.User import privileged, get_discriminating_name
 
 HELP = ('Koffing~~ I will listen to any trainer with enough badges!```'
 		'\nCommands (*=requires privilege):'
@@ -197,7 +197,7 @@ class AdminConsole(OnMessageFeature):
 			ask_restart(self.client)
 
 		elif content.startswith('stop'):
-			for task in FeatureUtils.bkg_features:
+			for task in Feature.bkg_features:
 				await task.serialize()
 				if not task.stopping:
 					task.stopping = True

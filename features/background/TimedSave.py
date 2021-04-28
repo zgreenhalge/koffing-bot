@@ -1,7 +1,7 @@
 from features.background.BackgroundFeature import BackgroundFeature
 from features.background.TaskCuller import TaskCuller
 from util import Settings
-from util.DateTimeUtils import prettify_seconds
+from util.DateTime import prettify_seconds
 
 
 class TimedSave(BackgroundFeature):

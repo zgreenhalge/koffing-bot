@@ -1,11 +1,11 @@
 from datetime import timedelta
 
 from features.onmessage.OnMessageFeature import OnMessageFeature
-from util.DateTimeUtils import now, pretty_date_format, prettify_seconds
-from util.LoggingUtils import get_logger
-from util.MessagingUtils import respond, koffing_reaction, delayed_response
-from util.TaskUtils import create_task
-from util.UserUtils import get_discriminating_name
+from util.DateTime import now, pretty_date_format, prettify_seconds
+from util.Logging import get_logger
+from util.Messaging import respond, koffing_reaction, delayed_response
+from util.Task import create_task
+from util.User import get_discriminating_name
 
 
 logger = get_logger()

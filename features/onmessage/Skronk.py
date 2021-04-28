@@ -1,12 +1,12 @@
 import asyncio
 
 from features.onmessage.OnMessageFeature import OnMessageFeature
-from util.LoggingUtils import get_logger
-from util.MessagingUtils import respond, get_mentioned
-from util.RoleUtils import get_role, members_of_role
+from util.Logging import get_logger
+from util.Messaging import respond, get_mentioned
+from util.Role import get_role, members_of_role
 from util.Settings import cmd_prefix, enabled, SILENT_MODE, skronk_timeout, settings, skronks
-from util.TaskUtils import create_task
-from util.UserUtils import privileged, get_discriminating_name
+from util.Task import create_task
+from util.User import privileged, get_discriminating_name
 
 logger = get_logger()
 SKRONKED = "SKRONK'D"
