@@ -4,9 +4,14 @@ from random import randint
 import discord
 
 from util import ChannelUtils, LoggingUtils, Settings
+from util.ChannelUtils import can_message
+from util.RoleUtils import members_of_role
 from util.UserUtils import get_discriminating_name
 
 logger = LoggingUtils.get_logger()
+
+START_MESSAGES = ["Koffing-bot, go~!", "Get 'em Koffing-bot~!"]
+STOP_MESSAGES = ["KOffing-bot, return!", "Koffing-bot, come back!"]
 
 
 async def negative_reaction(message):
@@ -162,12 +167,24 @@ async def shutdown_message(client, message):
 			if channel.type == discord.ChannelType.text:
 				if ChannelUtils.can_message(guild, channel) and Settings.enabled['greeting']:
 					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
-					await channel.send('Koffing-bot is going back to its pokeball~!')
+					await channel.send(START_MESSAGES[randint(0, len(START_MESSAGES) - 1)])
 				elif message.guild is None or message.channel is None:
 					continue
 				elif guild.id == message.guild.id and channel.id == message.channel.id:
 					logger.info('Alerting %s::%s to bot shutdown', guild.name, channel.name)
-					await channel.send('Koffing-bot is going back to its pokeball~!')
+					await channel.send(START_MESSAGES[randint(0, len(START_MESSAGES) - 1)])
+
+
+async def startup_message(client):
+	"""
+	Send a message that the bot is awake to all channels if greeting is enabled
+	"""
+	for guild in client.guilds:
+		if guild.id in Settings.authorized_guilds:
+			for channel in guild.channels:
+				if channel.type == discord.ChannelType.text and can_message(guild, channel) and Settings.enabled['greeting']:
+					client.logger.info('Alerting %s::%s to bot presence', guild.name, channel.id)
+					await client.send_message(channel, START_MESSAGES[randint(0, len(START_MESSAGES) - 1)])
 
 
 async def delayed_response(message, content, wait_time=300):

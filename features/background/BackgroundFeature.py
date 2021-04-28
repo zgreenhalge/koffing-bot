@@ -19,7 +19,8 @@ class BackgroundFeature(AbstractFeature):
 	def __init__(self, client, sleep_timeout=60):
 		super().__init__(client)
 		self.sleep_timeout = sleep_timeout
-		self.configuration()
+		if self.configuration() is not None:
+			self.logger.debug(self.configuration())
 
 	async def process(self, *args):
 		"""
@@ -38,6 +39,7 @@ class BackgroundFeature(AbstractFeature):
 		To be implemented, if desired
 		Print out the configuration of the background task
 		"""
+		return None
 
 	async def execute(self, *args):
 		"""

@@ -29,6 +29,6 @@ class TimedSave(BackgroundFeature):
 		self.logger.debug("Stopping: {} Stopped: {}".format(self.stopping, self.stopped))
 
 	def configuration(self):
-		self.logger.info("Save interval: {} | Sleep interval: {}".format(
-																		prettify_seconds(Settings.SAVE_TIMEOUT),
-																		prettify_seconds(self.sleep_timeout)))
+		return "Save interval: {} | Sleep interval: {}".format(
+															prettify_seconds(Settings.SAVE_TIMEOUT),
+															prettify_seconds(self.sleep_timeout))

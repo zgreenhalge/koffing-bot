@@ -56,12 +56,7 @@ async def on_ready():
 	new_game = discord.Game(Settings.game_str)
 	await client.change_presence(activity=new_game)
 
-	for guild in client.guilds:
-		if guild.id in Settings.authorized_guilds:
-			for channel in guild.channels:
-				if channel.type == discord.ChannelType.text and ChannelUtils.can_message(guild, channel) and Settings.enabled['greeting']:
-					logger.info('Alerting %s::%s to bot presence', guild.name, channel.id)
-					await client.send_message(channel, START_MESSAGES[randint(0, len(START_MESSAGES) - 1)])
+	await startup_message(client)
 	logger.warning('Koffing-bot is up and running!')
 
 

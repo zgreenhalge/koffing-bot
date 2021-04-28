@@ -3,6 +3,7 @@ import asyncio
 from features.onmessage.OnMessageFeature import OnMessageFeature
 from util.LoggingUtils import get_logger
 from util.MessagingUtils import respond, get_mentioned
+from util.RoleUtils import get_role, members_of_role
 from util.Settings import cmd_prefix, enabled, SILENT_MODE, skronk_timeout, settings, skronks
 from util.TaskUtils import create_task
 from util.UserUtils import privileged, get_discriminating_name
@@ -12,29 +13,8 @@ SKRONKED = "SKRONK'D"
 skronk_times = {}
 
 
-def members_of_role(guild, role):
-	"""
-	Returns an array of all members for the given role in the given guild
-	"""
-	logger.info("Looking for all members of {}".format(role.name))
-	ret = []
-	for member in guild.members:
-		if role in member.roles:
-			ret.append(member)
-	logger.info('Found {} members with the role: {}'.format(len(ret), ret))
-	return ret
-
-
 def get_skronk_role(guild):
-	"""
-	Finds the role named SKRONK'D
-	"""
-	logger.info("Looking for skronk role...")
-	for role in guild.roles:
-		if role.name.lower() == SKRONKED.lower():
-			return role
-	logger.info("Did not find role named {}".format(SKRONKED))
-	return None
+	return get_role(guild, SKRONKED)
 
 
 def get_skronk_time(member_id):
@@ -177,7 +157,7 @@ class Skronk(OnMessageFeature):
 			return
 
 		# Is the author skronked already?
-		if is_skronked(message.author, message.guild, self.skronk):
+		if is_skronked(message.author, self.skronk):
 			await respond(message, "What is skronked may never skronk.", emote="x")
 			return
 

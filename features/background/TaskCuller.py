@@ -58,7 +58,7 @@ class TaskCuller(BackgroundFeature):
 			self.logger.info("{} consecutive no-ops. Sleep increased to {}".format(self.noop_count, prettify_seconds(self.sleep_timeout)))
 
 	def configuration(self):
-		self.logger.info("Timeout: {} | Consecutive no-op backoff: {}".format(prettify_seconds(self.cull_timeout), self.noop_limit))
+		return "Timeout: {} | Consecutive no-op backoff: {}".format(prettify_seconds(self.cull_timeout), self.noop_limit)
 
 	def backdown_scale(self):
 		ret = self.noop_count / self.noop_limit
